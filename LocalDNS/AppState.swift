@@ -165,7 +165,7 @@ final class AppState: ObservableObject {
             }
             let latencyMs = Date().timeIntervalSince(started) * 1000
             self.queryLog.append(QueryLogEntry(query: query, resolution: resolution, latencyMs: latencyMs))
-            Task { @MainActor [weak self] in self?.publishQueryLog() }
+            Task { @MainActor [weak self] in self?.schedulePublishQueryLog() }
             return data
         }
     }
@@ -247,8 +247,19 @@ final class AppState: ObservableObject {
 
     // MARK: Query log
 
-    private func publishQueryLog() {
-        queryEntries = queryLog.entries
+    private var logPublishTask: Task<Void, Never>?
+
+    /// Coalesced log publication: busy DNS traffic would otherwise fire one
+    /// @Published update (and a full view-body re-evaluation) per query. A short
+    /// trailing debounce keeps the UI near-live while idle apps stay idle.
+    private func schedulePublishQueryLog() {
+        guard logPublishTask == nil else { return }
+        logPublishTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, !Task.isCancelled else { return }
+            self.queryEntries = self.queryLog.entries
+            self.logPublishTask = nil
+        }
     }
 
     func clearLog() {

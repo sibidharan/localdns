@@ -4,6 +4,11 @@ import SwiftUI
 /// radial-glow core, in a single hue per state.
 /// teal = serving & zones registered · amber = running but attention needed ·
 /// gray = stopped. Slow 4-second breathing pulse, Reduce-Motion aware.
+///
+/// Energy discipline: the pulse is a perpetual SwiftUI animation, which drives
+/// display-list updates every frame (~25% CPU on a ProMotion display — measured).
+/// So it runs ONLY while the hosting window is key, and stops on disappear or
+/// focus loss; a static orb renders everywhere else.
 struct DNSOrb: View {
     enum State: Equatable {
         case live       // serving, everything registered
@@ -16,6 +21,7 @@ struct DNSOrb: View {
 
     @SwiftUI.State private var pulsing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.controlActiveState) private var controlActiveState
 
     init(state: State, size: CGFloat = 28) {
         self.state = state
@@ -30,7 +36,10 @@ struct DNSOrb: View {
         }
     }
 
-    private var animates: Bool { state != .stopped && !reduceMotion }
+    /// Breathe only when animated, motion-safe, and the window is key.
+    private var animates: Bool {
+        state != .stopped && !reduceMotion && controlActiveState == .key
+    }
 
     var body: some View {
         ZStack {
@@ -52,18 +61,36 @@ struct DNSOrb: View {
         .scaleEffect(animates && pulsing ? 1.05 : 1.0)
         .opacity(state == .stopped ? 0.6 : 1)
         .animation(.easeInOut(duration: 0.5), value: state)
-        .onAppear {
-            guard animates else { return }
-            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
-                pulsing = true
-            }
-        }
+        .onAppear { updateAnimation() }
+        .onDisappear { stopAnimation() }
+        .onChange(of: controlActiveState) { _, _ in updateAnimation() }
+        .onChange(of: state) { _, _ in updateAnimation() }
+        .onChange(of: reduceMotion) { _, _ in updateAnimation() }
     }
 
     private var glowOpacity: Double {
         switch state {
         case .stopped: return 0.08
-        default: return pulsing ? 0.55 : 0.30
+        default: return pulsing && animates ? 0.55 : 0.30
         }
+    }
+
+    private func updateAnimation() {
+        if animates {
+            guard !pulsing else { return }
+            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
+                pulsing = true
+            }
+        } else {
+            stopAnimation()
+        }
+    }
+
+    /// Stopping the perpetual animation lets SwiftUI drop the display link.
+    private func stopAnimation() {
+        guard pulsing else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { pulsing = false }
     }
 }
