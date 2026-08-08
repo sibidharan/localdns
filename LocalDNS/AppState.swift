@@ -286,6 +286,12 @@ final class AppState: ObservableObject {
     /// bookmark even when the probe fails (ACL missing) so "Re-check" suffices
     /// after the user runs the Step 1 command.
     func grantResolverAccess(to url: URL) {
+        // The panel starts at /etc/resolver, but the user can navigate away —
+        // refuse anything that isn't the real resolver directory.
+        guard ResolverAccess.isResolverDirectory(url) else {
+            lastSyncOutcome = .failed("That isn't /etc/resolver — please select the /etc/resolver folder.")
+            return
+        }
         do {
             try ResolverAccess.saveBookmark(for: url)
         } catch {

@@ -24,6 +24,16 @@ public enum ResolverAccess {
     /// The URL currently being accessed under a security scope, if any.
     public static var activeAccessURL: URL? { lease.current }
 
+    /// True only when `url` is the real /etc/resolver directory. The open panel
+    /// starts there, but the user can navigate away — accepting any other
+    /// folder would bookmark the wrong location and ResolverSetup would write
+    /// zone files into it. Symlinks are resolved first (/etc → /private/etc).
+    public static func isResolverDirectory(_ url: URL) -> Bool {
+        let resolved = url.resolvingSymlinksInPath().standardizedFileURL.path
+        return resolved == ResolverSetup.resolverDirectory
+            .resolvingSymlinksInPath().standardizedFileURL.path
+    }
+
     // MARK: Saving (called right after the NSOpenPanel grant)
 
     /// Creates a security-scoped bookmark for `url` and persists it atomically.

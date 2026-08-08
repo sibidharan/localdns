@@ -101,6 +101,11 @@ struct RuleEditSheet: View {
                 .foregroundStyle(.secondary)
             if showsError(for: .pattern), let patternError {
                 errorText(patternError)
+            } else if patternError == nil, RuleValidation.usesLocalTLD(pattern) {
+                Label("“.local” is used by Bonjour/mDNS — wildcarding it can interfere with printers, AirPlay, and other network services.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Theme.attention)
             }
         }
     }
@@ -259,22 +264,7 @@ struct RuleEditSheet: View {
 
     /// Validates `*.something.tld` / `host.tld` patterns. Returns nil when valid.
     static func patternError(for pattern: String) -> String? {
-        let normalized = DNSRule.normalize(pattern.trimmingCharacters(in: .whitespaces))
-        if normalized.isEmpty { return "Pattern is required." }
-        if normalized.contains(" ") { return "No spaces allowed." }
-        let body = normalized.hasPrefix("*.") ? String(normalized.dropFirst(2)) : normalized
-        if body.contains("*") { return "“*” is only allowed as the leading “*.”." }
-        let labels = body.split(separator: ".", omittingEmptySubsequences: false)
-        if labels.count < 2 { return "Use a full name like “*.myapp.test” or “host.test”." }
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
-        for label in labels {
-            if label.isEmpty { return "Empty label — check the dots." }
-            if label.hasPrefix("-") || label.hasSuffix("-") { return "Labels can't start or end with “-”." }
-            if label.unicodeScalars.contains(where: { !allowed.contains($0) }) {
-                return "Only letters, digits, and “-” per label."
-            }
-        }
-        return nil
+        RuleValidation.patternError(for: pattern)
     }
 
     // MARK: Live preview
