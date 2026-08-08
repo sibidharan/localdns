@@ -1,0 +1,509 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B0B0B0B00000000000000001 /* LocalDNSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000001 /* LocalDNSApp.swift */; };
+		B0B0B0B00000000000000002 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000002 /* AppState.swift */; };
+		B0B0B0B00000000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000003 /* ContentView.swift */; };
+		B0B0B0B00000000000000004 /* DNSMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000004 /* DNSMessage.swift */; };
+		B0B0B0B00000000000000005 /* DNSServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000005 /* DNSServer.swift */; };
+		B0B0B0B00000000000000006 /* Rules.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000006 /* Rules.swift */; };
+		B0B0B0B00000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000007 /* Assets.xcassets */; };
+		B0B0B0B00000000000000008 /* DNSMessageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000B /* DNSMessageTests.swift */; };
+		B0B0B0B00000000000000009 /* RulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000C /* RulesTests.swift */; };
+		B0B0B0B0000000000000000A /* DNSMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000004 /* DNSMessage.swift */; };
+		B0B0B0B0000000000000000B /* DNSServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000005 /* DNSServer.swift */; };
+		B0B0B0B0000000000000000C /* Rules.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000006 /* Rules.swift */; };
+		B0B0B0B0000000000000000D /* ResolverSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000D /* ResolverSetup.swift */; };
+		B0B0B0B0000000000000000E /* HostsImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000E /* HostsImporter.swift */; };
+		B0B0B0B0000000000000000F /* QueryLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000F /* QueryLog.swift */; };
+		B0B0B0B00000000000000010 /* ResolverSetupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000010 /* ResolverSetupTests.swift */; };
+		B0B0B0B00000000000000011 /* HostsImporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000011 /* HostsImporterTests.swift */; };
+		B0B0B0B00000000000000012 /* QueryLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000012 /* QueryLogTests.swift */; };
+		B0B0B0B00000000000000013 /* ResolverSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000D /* ResolverSetup.swift */; };
+		B0B0B0B00000000000000014 /* HostsImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000E /* HostsImporter.swift */; };
+		B0B0B0B00000000000000015 /* QueryLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000000F /* QueryLog.swift */; };
+		B0B0B0B00000000000000016 /* DNSClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000013 /* DNSClient.swift */; };
+		B0B0B0B00000000000000017 /* RulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000014 /* RulesView.swift */; };
+		B0B0B0B00000000000000018 /* RuleEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000015 /* RuleEditSheet.swift */; };
+		B0B0B0B00000000000000019 /* ImportHostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000016 /* ImportHostsView.swift */; };
+		B0B0B0B0000000000000001A /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000017 /* SetupView.swift */; };
+		B0B0B0B0000000000000001B /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000018 /* DiagnosticsView.swift */; };
+		B0B0B0B0000000000000001C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000019 /* SettingsView.swift */; };
+		B0B0B0B0000000000000001D /* DNSClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001A /* DNSClientTests.swift */; };
+		B0B0B0B0000000000000001E /* DNSClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000013 /* DNSClient.swift */; };
+		B0B0B0B0000000000000001F /* ResolverAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001B /* ResolverAccess.swift */; };
+		B0B0B0B00000000000000020 /* ResolverAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001B /* ResolverAccess.swift */; };
+		B0B0B0B00000000000000021 /* ResolverAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001C /* ResolverAccessTests.swift */; };
+		B0B0B0B00000000000000022 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001D /* Theme.swift */; };
+		B0B0B0B00000000000000023 /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001E /* Glass.swift */; };
+		B0B0B0B00000000000000024 /* DNSOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001F /* DNSOrb.swift */; };
+		B0B0B0B00000000000000027 /* ActionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000022 /* ActionBar.swift */; };
+		B0B0B0B00000000000000028 /* TopologyBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000023 /* TopologyBackdrop.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A0A0A0A00000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A0A0A0A00000000000000003 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0D0D0D00000000000000001;
+			remoteInfo = LocalDNS;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		F0F0F0F00000000000000001 /* LocalDNSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDNSApp.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000002 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000003 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000004 /* DNSMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSMessage.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000005 /* DNSServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSServer.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000006 /* Rules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rules.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F0F0F0F00000000000000008 /* LocalDNS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LocalDNS.entitlements; sourceTree = "<group>"; };
+		F0F0F0F00000000000000009 /* LocalDNS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalDNS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0F0F0F0000000000000000A /* LocalDNSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalDNSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0F0F0F0000000000000000B /* DNSMessageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSMessageTests.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000000C /* RulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesTests.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000000D /* ResolverSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolverSetup.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000000E /* HostsImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostsImporter.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000000F /* QueryLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryLog.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000010 /* ResolverSetupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolverSetupTests.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000011 /* HostsImporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostsImporterTests.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000012 /* QueryLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryLogTests.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000013 /* DNSClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSClient.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000014 /* RulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesView.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000015 /* RuleEditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEditSheet.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000016 /* ImportHostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportHostsView.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000017 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000018 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000019 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000001A /* DNSClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSClientTests.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000001B /* ResolverAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolverAccess.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000001C /* ResolverAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolverAccessTests.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000001D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000001E /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
+		F0F0F0F0000000000000001F /* DNSOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSOrb.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000022 /* ActionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionBar.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000023 /* TopologyBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopologyBackdrop.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E0E0E0E00000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E0E0E0E00000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C0C0C0C00000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				C0C0C0C00000000000000002 /* LocalDNS */,
+				C0C0C0C00000000000000005 /* LocalDNSTests */,
+				C0C0C0C00000000000000006 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C0C0C0C00000000000000002 /* LocalDNS */ = {
+			isa = PBXGroup;
+			children = (
+				F0F0F0F00000000000000001 /* LocalDNSApp.swift */,
+				F0F0F0F00000000000000002 /* AppState.swift */,
+				C0C0C0C00000000000000003 /* Core */,
+				C0C0C0C00000000000000004 /* Views */,
+				F0F0F0F00000000000000007 /* Assets.xcassets */,
+				F0F0F0F00000000000000008 /* LocalDNS.entitlements */,
+			);
+			path = LocalDNS;
+			sourceTree = "<group>";
+		};
+		C0C0C0C00000000000000003 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				F0F0F0F00000000000000004 /* DNSMessage.swift */,
+				F0F0F0F00000000000000005 /* DNSServer.swift */,
+				F0F0F0F00000000000000006 /* Rules.swift */,
+				F0F0F0F0000000000000000D /* ResolverSetup.swift */,
+				F0F0F0F0000000000000000E /* HostsImporter.swift */,
+				F0F0F0F0000000000000000F /* QueryLog.swift */,
+				F0F0F0F00000000000000013 /* DNSClient.swift */,
+				F0F0F0F0000000000000001B /* ResolverAccess.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		C0C0C0C00000000000000004 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F0F0F0F00000000000000003 /* ContentView.swift */,
+				F0F0F0F00000000000000014 /* RulesView.swift */,
+				F0F0F0F00000000000000015 /* RuleEditSheet.swift */,
+				F0F0F0F00000000000000016 /* ImportHostsView.swift */,
+				F0F0F0F00000000000000017 /* SetupView.swift */,
+				F0F0F0F00000000000000018 /* DiagnosticsView.swift */,
+				F0F0F0F00000000000000019 /* SettingsView.swift */,
+				F0F0F0F0000000000000001D /* Theme.swift */,
+				F0F0F0F0000000000000001E /* Glass.swift */,
+				F0F0F0F0000000000000001F /* DNSOrb.swift */,
+				F0F0F0F00000000000000022 /* ActionBar.swift */,
+				F0F0F0F00000000000000023 /* TopologyBackdrop.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		C0C0C0C00000000000000005 /* LocalDNSTests */ = {
+			isa = PBXGroup;
+			children = (
+				F0F0F0F0000000000000000B /* DNSMessageTests.swift */,
+				F0F0F0F0000000000000000C /* RulesTests.swift */,
+				F0F0F0F00000000000000010 /* ResolverSetupTests.swift */,
+				F0F0F0F00000000000000011 /* HostsImporterTests.swift */,
+				F0F0F0F00000000000000012 /* QueryLogTests.swift */,
+				F0F0F0F0000000000000001A /* DNSClientTests.swift */,
+				F0F0F0F0000000000000001C /* ResolverAccessTests.swift */,
+			);
+			path = LocalDNSTests;
+			sourceTree = "<group>";
+		};
+		C0C0C0C00000000000000006 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F0F0F0F00000000000000009 /* LocalDNS.app */,
+				F0F0F0F0000000000000000A /* LocalDNSTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D0D0D0D00000000000000001 /* LocalDNS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CFCFCFCF0000000000000002 /* Build configuration list for PBXNativeTarget "LocalDNS" */;
+			buildPhases = (
+				E0E0E0E00000000000000001 /* Sources */,
+				E0E0E0E00000000000000002 /* Frameworks */,
+				E0E0E0E00000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LocalDNS;
+			productName = LocalDNS;
+			productReference = F0F0F0F00000000000000009 /* LocalDNS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D0D0D0D00000000000000002 /* LocalDNSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CFCFCFCF0000000000000003 /* Build configuration list for PBXNativeTarget "LocalDNSTests" */;
+			buildPhases = (
+				E0E0E0E00000000000000004 /* Sources */,
+				E0E0E0E00000000000000005 /* Frameworks */,
+				E0E0E0E00000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A0A0A0A00000000000000001 /* PBXTargetDependency */,
+			);
+			name = LocalDNSTests;
+			productName = LocalDNSTests;
+			productReference = F0F0F0F0000000000000000A /* LocalDNSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A0A0A0A00000000000000003 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					D0D0D0D00000000000000001 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					D0D0D0D00000000000000002 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = D0D0D0D00000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = CFCFCFCF0000000000000001 /* Build configuration list for PBXProject "LocalDNS" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C0C0C0C00000000000000001;
+			productRefGroup = C0C0C0C00000000000000006 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D0D0D0D00000000000000001 /* LocalDNS */,
+				D0D0D0D00000000000000002 /* LocalDNSTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E0E0E0E00000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0B0B0B00000000000000007 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E0E0E0E00000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E0E0E0E00000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0B0B0B00000000000000001 /* LocalDNSApp.swift in Sources */,
+				B0B0B0B00000000000000002 /* AppState.swift in Sources */,
+				B0B0B0B00000000000000004 /* DNSMessage.swift in Sources */,
+				B0B0B0B00000000000000005 /* DNSServer.swift in Sources */,
+				B0B0B0B00000000000000006 /* Rules.swift in Sources */,
+				B0B0B0B0000000000000000D /* ResolverSetup.swift in Sources */,
+				B0B0B0B0000000000000000E /* HostsImporter.swift in Sources */,
+				B0B0B0B0000000000000000F /* QueryLog.swift in Sources */,
+				B0B0B0B00000000000000016 /* DNSClient.swift in Sources */,
+				B0B0B0B0000000000000001F /* ResolverAccess.swift in Sources */,
+				B0B0B0B00000000000000017 /* RulesView.swift in Sources */,
+				B0B0B0B00000000000000018 /* RuleEditSheet.swift in Sources */,
+				B0B0B0B00000000000000019 /* ImportHostsView.swift in Sources */,
+				B0B0B0B0000000000000001A /* SetupView.swift in Sources */,
+				B0B0B0B0000000000000001B /* DiagnosticsView.swift in Sources */,
+				B0B0B0B0000000000000001C /* SettingsView.swift in Sources */,
+				B0B0B0B00000000000000022 /* Theme.swift in Sources */,
+				B0B0B0B00000000000000023 /* Glass.swift in Sources */,
+				B0B0B0B00000000000000024 /* DNSOrb.swift in Sources */,
+				B0B0B0B00000000000000027 /* ActionBar.swift in Sources */,
+				B0B0B0B00000000000000028 /* TopologyBackdrop.swift in Sources */,
+				B0B0B0B00000000000000003 /* ContentView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E0E0E0E00000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0B0B0B00000000000000008 /* DNSMessageTests.swift in Sources */,
+				B0B0B0B00000000000000009 /* RulesTests.swift in Sources */,
+				B0B0B0B0000000000000000A /* DNSMessage.swift in Sources */,
+				B0B0B0B0000000000000000B /* DNSServer.swift in Sources */,
+				B0B0B0B0000000000000000C /* Rules.swift in Sources */,
+				B0B0B0B00000000000000010 /* ResolverSetupTests.swift in Sources */,
+				B0B0B0B00000000000000011 /* HostsImporterTests.swift in Sources */,
+				B0B0B0B00000000000000012 /* QueryLogTests.swift in Sources */,
+				B0B0B0B00000000000000013 /* ResolverSetup.swift in Sources */,
+				B0B0B0B00000000000000014 /* HostsImporter.swift in Sources */,
+				B0B0B0B00000000000000015 /* QueryLog.swift in Sources */,
+				B0B0B0B0000000000000001D /* DNSClientTests.swift in Sources */,
+				B0B0B0B0000000000000001E /* DNSClient.swift in Sources */,
+				B0B0B0B00000000000000020 /* ResolverAccess.swift in Sources */,
+				B0B0B0B00000000000000021 /* ResolverAccessTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A0A0A0A00000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D0D0D0D00000000000000001 /* LocalDNS */;
+			targetProxy = A0A0A0A00000000000000002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CACACACA0000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		CACACACA0000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		CACACACA0000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = LocalDNS/LocalDNS.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localdns.app;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = APPL;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		CACACACA0000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = LocalDNS/LocalDNS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localdns.app;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = APPL;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		CACACACA0000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localdns.app.tests;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = BNDL;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Debug;
+		};
+		CACACACA0000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.localdns.app.tests;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = BNDL;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CFCFCFCF0000000000000001 /* Build configuration list for PBXProject "LocalDNS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CACACACA0000000000000001 /* Debug */,
+				CACACACA0000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CFCFCFCF0000000000000002 /* Build configuration list for PBXNativeTarget "LocalDNS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CACACACA0000000000000003 /* Debug */,
+				CACACACA0000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CFCFCFCF0000000000000003 /* Build configuration list for PBXNativeTarget "LocalDNSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CACACACA0000000000000005 /* Debug */,
+				CACACACA0000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A0A0A0A00000000000000003 /* Project object */;
+}
