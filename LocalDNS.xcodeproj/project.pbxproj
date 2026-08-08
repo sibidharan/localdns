@@ -45,6 +45,7 @@
 		B0B0B0B00000000000000024 /* DNSOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F0000000000000001F /* DNSOrb.swift */; };
 		B0B0B0B00000000000000027 /* ActionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000022 /* ActionBar.swift */; };
 		B0B0B0B00000000000000028 /* TopologyBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000023 /* TopologyBackdrop.swift */; };
+		B0B0B0B00000000000000029 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F0F0F0F00000000000000024 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -91,6 +92,7 @@
 		F0F0F0F0000000000000001F /* DNSOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSOrb.swift; sourceTree = "<group>"; };
 		F0F0F0F00000000000000022 /* ActionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionBar.swift; sourceTree = "<group>"; };
 		F0F0F0F00000000000000023 /* TopologyBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopologyBackdrop.swift; sourceTree = "<group>"; };
+		F0F0F0F00000000000000024 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.privacy; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +131,7 @@
 				C0C0C0C00000000000000004 /* Views */,
 				F0F0F0F00000000000000007 /* Assets.xcassets */,
 				F0F0F0F00000000000000008 /* LocalDNS.entitlements */,
+				F0F0F0F00000000000000024 /* PrivacyInfo.xcprivacy */,
 			);
 			path = LocalDNS;
 			sourceTree = "<group>";
@@ -272,6 +275,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0B0B0B00000000000000007 /* Assets.xcassets in Resources */,
+				B0B0B0B00000000000000029 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -405,6 +409,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 LocalDNS. All rights reserved.";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -430,6 +435,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 LocalDNS. All rights reserved.";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -70,10 +70,13 @@ private struct MenuBarContentView: View {
                             Text(entry.name)
                                 .font(Theme.domain(.caption))
                                 .lineLimit(1)
+                                .truncationMode(.middle)
                             Spacer()
-                            Text(outcomeText(entry.outcome))
+                            Text(outcomeText(entry))
                                 .font(Theme.domain(.caption))
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .fixedSize()
                         }
                     }
                 }
@@ -114,10 +117,10 @@ private struct MenuBarContentView: View {
         }
     }
 
-    private func outcomeText(_ outcome: QueryLogEntry.Outcome) -> String {
-        switch outcome {
+    private func outcomeText(_ entry: QueryLogEntry) -> String {
+        switch entry.outcome {
         case .answered(let address): return address
-        case .noData: return "no data"
+        case .noData: return "no \(entry.qtype) record"
         case .nxdomain: return "NXDOMAIN"
         }
     }

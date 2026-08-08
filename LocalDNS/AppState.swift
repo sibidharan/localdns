@@ -39,6 +39,65 @@ final class AppState: ObservableObject {
     /// New Rule sheet for it (debug/E2E driver).
     @Published var debugNewRuleSheet: DebugNewRuleSeed?
 
+    /// Set by the action bar's "Add Rule" button and the empty state;
+    /// RulesView presents the New Rule sheet for it.
+    @Published var showingNewRuleSheet = false
+    /// Set by the action bar's "Grant Access…" button; SetupView presents the
+    /// NSOpenPanel for it (the panel needs view context).
+    @Published var grantPanelRequestID: UUID?
+
+    // MARK: Import-from-hosts state (Helm bridge)
+
+    /// Suggestions from the last scan; nil = never scanned.
+    @Published private(set) var importSuggestions: [SuggestedRule]?
+    @Published private(set) var importUncovered: [String] = []
+    /// Keys ("pattern|ip") of suggestions added since the last scan.
+    @Published private(set) var importAddedKeys: Set<String> = []
+
+    func scanHosts() {
+        let entries = HostsImporter.loadSystemHosts()
+        importSuggestions = HostsImporter.suggestions(entries: entries)
+        importUncovered = HostsImporter.uncovered(entries: entries, rules: rules)
+        importAddedKeys = []
+    }
+
+    enum ImportSuggestionStatus: Equatable {
+        case addable, added, alreadyExists
+    }
+
+    func importSuggestionStatus(_ suggestion: SuggestedRule) -> ImportSuggestionStatus {
+        if importAddedKeys.contains(Self.importKey(suggestion)) { return .added }
+        let pattern = DNSRule.normalize(suggestion.pattern)
+        if rules.contains(where: { $0.normalizedPattern == pattern }) { return .alreadyExists }
+        return .addable
+    }
+
+    var addableImportSuggestions: [SuggestedRule] {
+        (importSuggestions ?? []).filter { importSuggestionStatus($0) == .addable }
+    }
+
+    func addSuggestedRule(_ suggestion: SuggestedRule) {
+        addRule(suggestion.rule)
+        importAddedKeys.insert(Self.importKey(suggestion))
+        rescanImportUncovered()
+    }
+
+    func addAllSuggestedRules() {
+        let batch = addableImportSuggestions
+        addRules(batch.map(\.rule))
+        importAddedKeys.formUnion(batch.map(Self.importKey))
+        rescanImportUncovered()
+    }
+
+    private func rescanImportUncovered() {
+        let entries = HostsImporter.loadSystemHosts()
+        importUncovered = HostsImporter.uncovered(entries: entries, rules: rules)
+    }
+
+    static func importKey(_ suggestion: SuggestedRule) -> String {
+        "\(suggestion.pattern)|\(suggestion.ip)"
+    }
+
     // MARK: Settings (UserDefaults-backed via @AppStorage)
 
     static let defaultPort = 15353

@@ -6,54 +6,31 @@ import SwiftUI
 /// security-scoped bookmark) are unchanged; the primary action also lives in
 /// the action bar.
 struct SetupView: View {
-    let barNamespace: Namespace.ID
-
     @EnvironmentObject var appState: AppState
     @State private var didCopyCommand = false
 
     var body: some View {
-        SectionScaffold(namespace: barNamespace) {
-            setupActions
-        } content: {
-            Form {
-                statusSection
+        Form {
+            statusSection
 
-                if !appState.resolverAccessGranted {
-                    stepSections
-                } else if !appState.resolverAccessWritable {
-                    notWritableSection
-                } else {
-                    zonesSection
-                    manageSection
-                }
-
-                selfTestSection
+            if !appState.resolverAccessGranted {
+                stepSections
+            } else if !appState.resolverAccessWritable {
+                notWritableSection
+            } else {
+                zonesSection
+                manageSection
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
+
+            selfTestSection
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .onAppear { appState.refreshResolverStatus() }
-    }
-
-    // MARK: Action bar
-
-    @ViewBuilder
-    private var setupActions: some View {
-        // One shared ID: the primary action morphs through the grant flow's
-        // states (Grant → Re-check → Re-sync) without leaving the glass.
-        if !appState.resolverAccessGranted {
-            Button("Grant Access…", systemImage: "folder.badge.plus") { presentGrantPanel() }
-                .glassProminentButton()
-                .primaryGlassID(barNamespace)
-        } else if !appState.resolverAccessWritable {
-            Button("Re-check Access", systemImage: "arrow.clockwise") { appState.recheckResolverAccess() }
-                .glassProminentButton()
-                .primaryGlassID(barNamespace)
-        } else {
-            Button("Re-sync Now", systemImage: "arrow.triangle.2.circlepath") { appState.syncResolver() }
-                .glassProminentButton()
-                .primaryGlassID(barNamespace)
-                .disabled(appState.resolverPlan.isNoop)
+        .onChange(of: appState.grantPanelRequestID) { _, request in
+            // The action bar's "Grant Access…" button requests the panel here
+            // (panel presentation needs view context).
+            if request != nil { presentGrantPanel() }
         }
     }
 

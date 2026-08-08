@@ -28,10 +28,12 @@ enum AppSection: String, CaseIterable, Identifiable {
 }
 
 /// Window root: sidebar navigation plus a detail column on the standard window
-/// background. On macOS 26 the whole detail sits in one GlassEffectContainer,
-/// so the floating bars' primary glass actions morph into each other when the
-/// section changes (they share a glassEffectID in `barNamespace`).
+/// background. The action bar is hoisted here so it PERSISTS across section
+/// switches — only the content below it transitions (`.id(section)`), so the
+/// orb and glass shell never re-animate on tab changes. The per-section primary
+/// action still morphs inside the shared GlassEffectContainer.
 struct ContentView: View {
+    @EnvironmentObject var appState: AppState
     @State private var section: AppSection? = .rules
     @Namespace private var barNamespace
 
@@ -52,27 +54,81 @@ struct ContentView: View {
         Group {
             if #available(macOS 26.0, *) {
                 GlassEffectContainer(spacing: 8) {
-                    sectionViews
+                    sectionContent
+                        .scrollEdgeEffectStyle(.soft, for: .top)
+                        .safeAreaBar(edge: .top, spacing: 0) {
+                            PersistentActionBar { sectionActions }
+                        }
                 }
             } else {
-                sectionViews
+                VStack(spacing: 0) {
+                    PersistentActionBar { sectionActions }
+                    Divider()
+                    sectionContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
     }
 
+    /// The swapping part: only this view carries `.id(section)`, so only it
+    /// re-renders with the opacity transition when the section changes.
     @ViewBuilder
-    private var sectionViews: some View {
+    private var sectionContent: some View {
         Group {
             switch section ?? .rules {
-            case .rules: RulesView(barNamespace: barNamespace)
-            case .import: ImportHostsView(barNamespace: barNamespace)
-            case .setup: SetupView(barNamespace: barNamespace)
-            case .diagnostics: DiagnosticsView(barNamespace: barNamespace)
-            case .settings: SettingsView(barNamespace: barNamespace)
+            case .rules: RulesView()
+            case .import: ImportHostsView()
+            case .setup: SetupView()
+            case .diagnostics: DiagnosticsView()
+            case .settings: SettingsView()
             }
         }
         .id(section)
         .transition(.opacity)
         .animation(.spring(duration: 0.3), value: section)
+    }
+
+    /// The bar's action slot for the current section. Primary actions share one
+    /// glassEffectID so switching sections morphs the pill in place.
+    @ViewBuilder
+    private var sectionActions: some View {
+        switch section ?? .rules {
+        case .rules:
+            Button("Add Rule", systemImage: "plus") { appState.showingNewRuleSheet = true }
+                .glassProminentButton()
+                .primaryGlassID(barNamespace)
+        case .import:
+            if appState.importSuggestions != nil, !appState.addableImportSuggestions.isEmpty {
+                Button("Add All") { appState.addAllSuggestedRules() }
+                    .glassButton()
+            }
+            Button("Scan /etc/hosts", systemImage: "doc.text.magnifyingglass") { appState.scanHosts() }
+                .glassProminentButton()
+                .primaryGlassID(barNamespace)
+        case .setup:
+            if !appState.resolverAccessGranted {
+                Button("Grant Access…", systemImage: "folder.badge.plus") {
+                    appState.grantPanelRequestID = UUID()
+                }
+                .glassProminentButton()
+                .primaryGlassID(barNamespace)
+            } else if !appState.resolverAccessWritable {
+                Button("Re-check Access", systemImage: "arrow.clockwise") { appState.recheckResolverAccess() }
+                    .glassProminentButton()
+                    .primaryGlassID(barNamespace)
+            } else {
+                Button("Re-sync Now", systemImage: "arrow.triangle.2.circlepath") { appState.syncResolver() }
+                    .glassProminentButton()
+                    .primaryGlassID(barNamespace)
+                    .disabled(appState.resolverPlan.isNoop)
+            }
+        case .diagnostics:
+            Button("Clear Log", systemImage: "trash") { appState.clearLog() }
+                .glassButton()
+                .disabled(appState.queryEntries.isEmpty)
+        case .settings:
+            EmptyView()
+        }
     }
 }

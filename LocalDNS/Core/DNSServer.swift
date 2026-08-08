@@ -106,7 +106,7 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
             if isUDP { udpReady = true } else { tcpReady = true }
             publish()
         case .failed(let error):
-            currentError = "\(isUDP ? "UDP" : "TCP") listener failed: \(error.localizedDescription)"
+            currentError = "\(isUDP ? "UDP" : "TCP") listener on port \(self.port) failed to start — the port may already be in use by another app. (\(error.localizedDescription))"
             teardown()
         case .cancelled:
             if isUDP { udpReady = false } else { tcpReady = false }

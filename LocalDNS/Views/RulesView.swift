@@ -4,10 +4,7 @@ import SwiftUI
 /// idiom): small toggle, outline wildcard badge + monospaced pattern, IPs as
 /// plain mono text with tiny colored dots, quiet Edit, context-menu delete.
 struct RulesView: View {
-    let barNamespace: Namespace.ID
-
     @EnvironmentObject var appState: AppState
-    @State private var showingAddSheet = false
     @State private var editingRule: DNSRule?
     @State private var rulePendingDeletion: DNSRule?
     @State private var hoveredRule: DNSRule.ID?
@@ -19,11 +16,7 @@ struct RulesView: View {
     }
 
     var body: some View {
-        SectionScaffold(namespace: barNamespace) {
-            Button("Add Rule", systemImage: "plus") { showingAddSheet = true }
-                .glassProminentButton()
-                .primaryGlassID(barNamespace)
-        } content: {
+        Group {
             if appState.rules.isEmpty {
                 emptyState
             } else {
@@ -56,7 +49,9 @@ struct RulesView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .sheet(isPresented: $showingAddSheet) {
+        .sheet(isPresented: Binding(
+            get: { appState.showingNewRuleSheet },
+            set: { appState.showingNewRuleSheet = $0 })) {
             RuleEditSheet()
         }
         .sheet(item: Binding(
@@ -85,7 +80,7 @@ struct RulesView: View {
             Text("Add your first wildcard rule, e.g. *.myapp.test → 127.0.0.1")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Button("Add Rule") { showingAddSheet = true }
+            Button("Add Rule") { appState.showingNewRuleSheet = true }
                 .glassProminentButton()
                 .controlSize(.large)
         }

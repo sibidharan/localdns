@@ -2,16 +2,11 @@ import SwiftUI
 
 /// Settings: standard grouped form. No custom surfaces.
 struct SettingsView: View {
-    let barNamespace: Namespace.ID
-
     @EnvironmentObject var appState: AppState
     @State private var portDraft = ""
 
     var body: some View {
-        SectionScaffold(namespace: barNamespace) {
-            EmptyView()
-        } content: {
-            Form {
+        Form {
                 Section("Server") {
                     LabeledContent("Port") {
                         HStack {
@@ -55,7 +50,6 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
-        }
         .onAppear { portDraft = String(appState.port) }
     }
 

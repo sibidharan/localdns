@@ -1,46 +1,21 @@
 import SwiftUI
 
 /// The floating functional layer above every section: orb, wordmark + one-line
-/// status, master switch, and the section's actions.
+/// status, master switch, and the current section's actions.
 ///
-/// macOS 26: the bar is a `.safeAreaBar`, so section content scrolls *beneath*
-/// it and the glass controls actually refract something; a soft top scroll-edge
-/// effect keeps the text legible. The controls live in one GlassEffectContainer
-/// (hosted by ContentView) and each section's primary action carries the shared
-/// `glassEffectID` "section-primary" — switching sections (or grant states)
-/// morphs the glass pill, the signature Liquid Glass transition.
+/// The bar is owned by ContentView and persists across section switches — only
+/// the `actions` slot swaps (the primary pill morphs via the shared
+/// `glassEffectID` "section-primary"). This is what keeps the orb's breathing
+/// animation and the glass shell from re-animating on every tab change.
 ///
-/// macOS 14–25: the same bar pinned above a Divider with plain system buttons.
-struct SectionScaffold<Actions: View, Content: View>: View {
-    /// Shared namespace owned by ContentView (must outlive section switches for
-    /// the morph to work).
-    let namespace: Namespace.ID
-
+/// macOS 26: presented as a `.safeAreaBar`, so section content scrolls *beneath*
+/// it and the glass actually refracts something; a soft top scroll-edge effect
+/// keeps text legible. macOS 14–25: the same bar pinned above a Divider.
+struct PersistentActionBar<Actions: View>: View {
     @EnvironmentObject var appState: AppState
     @ViewBuilder var actions: () -> Actions
-    @ViewBuilder var content: () -> Content
 
     var body: some View {
-        if #available(macOS 26.0, *) {
-            content()
-                .scrollEdgeEffectStyle(.soft, for: .top)
-                .safeAreaBar(edge: .top, spacing: 0) {
-                    bar
-                }
-        } else {
-            VStack(spacing: 0) {
-                bar
-                Divider()
-                content()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-    }
-
-    /// Orb + wordmark + status + master switch + section actions, presented on
-    /// macOS 26 as ONE frosted glass shell floating over the content (controls
-    /// inside demote themselves to non-glass styles — no nested glass).
-    private var bar: some View {
         HStack(spacing: 12) {
             Button {
                 appState.runSelfTest()

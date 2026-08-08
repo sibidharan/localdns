@@ -171,6 +171,21 @@ Staging tips: seed rules via the UI before shooting; drive queries with
 - [ ] Export compliance is pre-declared in the target:
       `ITSAppUsesNonExemptEncryption = NO` (standard system TLS only; nothing
       custom). App Store Connect will not ask further.
+- [ ] `PrivacyInfo.xcprivacy` ships in the bundle (UserDefaults CA92.1 only —
+      settings stored locally). Verify it survives the archive:
+      `plutil -p "…/LocalDNS.app/Contents/Resources/PrivacyInfo.xcprivacy"`.
+- [ ] **Verify the archived binary has no debugger entitlement** — ad-hoc
+      "Sign to Run Locally" builds inject `get-task-allow`; a properly team-signed
+      Release archive must NOT contain it. After archiving:
+      `codesign -d --entitlements :- …/LocalDNS.app | grep get-task-allow` must
+      print nothing. App Store rejects binaries that carry it.
+
+**App Store Connect setup**
+- [ ] A public **Support URL** is mandatory — a GitHub repo page or a simple
+      landing page is enough.
+- [ ] Marketing URL is optional but recommended.
+- [ ] Price: paid-up-front tier of your choice (no IAP, no subscriptions — the
+      binary contains no store code; select the tier in Pricing and Availability).
 
 **Build & upload**
 - [ ] `Product → Archive` with the LocalDNS scheme → validate → upload to

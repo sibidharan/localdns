@@ -139,4 +139,26 @@ final class DNSMessageTests: XCTestCase {
             XCTAssertEqual(error as? DNSParseError, .missingQuestion)
         }
     }
+
+    /// Modern resolvers (including macOS and dig) attach an EDNS OPT pseudo-record
+    /// in the additional section. The parser must tolerate it, and the response
+    /// must stay well-formed (ARCOUNT = 0, question echoed verbatim).
+    func testQueryWithEDNSAdditionalRecordIsTolerated() throws {
+        var data = makeQuery()
+        data[11] = 1                               // ARCOUNT = 1
+        data.append(0)                             // NAME = root
+        data.append(contentsOf: [0x00, 0x29])      // TYPE = OPT (41)
+        data.append(contentsOf: [0x04, 0xD0])      // CLASS = UDP payload 1232
+        data.append(contentsOf: [0x00, 0x00, 0x00, 0x00]) // TTL (ext-rcode/flags)
+        data.append(contentsOf: [0x00, 0x00])      // RDLENGTH = 0
+        let query = try DNSMessage.parseQuery(data)
+        XCTAssertEqual(query.name, "foo.myapp.test")
+
+        let answer = DNSAnswer(qtype: DNSMessage.typeA, ttl: 60, rdata: Data([172, 30, 0, 3]))
+        let bytes = [UInt8](DNSResponseBuilder.response(to: query, answers: [answer]))
+        XCTAssertEqual(u16(bytes, 10), 0)          // response ARCOUNT = 0
+        // Echoed question matches the original question bytes (not the OPT tail).
+        let original = [UInt8](makeQuery())
+        XCTAssertEqual(Array(bytes[12 ..< original.count]), Array(original[12...]))
+    }
 }
