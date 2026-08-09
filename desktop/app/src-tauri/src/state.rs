@@ -89,7 +89,7 @@ pub struct DebounceGate {
 }
 
 impl DebounceGate {
-    pub fn poke(&self, app: AppHandle) {
+    pub fn poke<R: tauri::Runtime>(&self, app: AppHandle<R>) {
         if self.pending.swap(true, Ordering::AcqRel) {
             return;
         }
@@ -104,7 +104,7 @@ impl DebounceGate {
 
 /// Emits the query-log snapshot to the window (only when visible — a hidden
 /// webview shouldn't be woken 3×/second) and refreshes the tray's recent list.
-pub fn publish_query_log(app: &AppHandle) {
+pub fn publish_query_log<R: tauri::Runtime>(app: &AppHandle<R>) {
     let state = app.state::<AppState>();
     let entries = state.query_log.entries();
     let visible = app

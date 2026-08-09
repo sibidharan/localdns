@@ -19,6 +19,7 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@tauri-apps/cli": "^2.9.6",
+    "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
     "jsdom": "^29.1.1",
     "svelte": "^5.20.0",

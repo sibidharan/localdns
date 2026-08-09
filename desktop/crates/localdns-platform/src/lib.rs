@@ -141,6 +141,12 @@ pub trait ResolverBackend: Send + Sync {
 /// without a real implementation yet, the in-memory mock keeps the app fully
 /// functional minus actual OS registration.
 pub fn default_backend() -> Box<dyn ResolverBackend> {
+    // LOCALDNS_BACKEND=mock forces the in-memory backend on any OS — the
+    // deterministic seam CI and the CLI integration tests run through, and an
+    // escape hatch on machines where the real backend can't be granted.
+    if std::env::var("LOCALDNS_BACKEND").as_deref() == Ok("mock") {
+        return Box::new(mock::MockBackend::new());
+    }
     #[cfg(windows)]
     {
         Box::new(windows::NrptBackend::new())

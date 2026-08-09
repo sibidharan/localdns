@@ -26,7 +26,7 @@ type CmdResult<T> = Result<T, String>;
 
 /// Apply a mutation to the rules, snapshot for the server, persist, notify,
 /// and schedule the debounced resolver auto-sync — `mutateRules` parity.
-fn mutate_rules<F: FnOnce(&mut Vec<DnsRule>)>(app: &AppHandle, f: F) -> CmdResult<Vec<DnsRule>> {
+fn mutate_rules<R: tauri::Runtime, F: FnOnce(&mut Vec<DnsRule>)>(app: &AppHandle<R>, f: F) -> CmdResult<Vec<DnsRule>> {
     let state = app.state::<AppState>();
     let rules = {
         let mut store = state.store.lock().unwrap();
@@ -53,7 +53,7 @@ pub struct Bootstrap {
 
 /// One-call hydration for the frontend at startup / window reopen.
 #[tauri::command]
-pub fn get_bootstrap(app: AppHandle, state: State<AppState>) -> Bootstrap {
+pub fn get_bootstrap<R: tauri::Runtime>(app: AppHandle<R>, state: State<AppState>) -> Bootstrap {
     // The settings guard MUST drop before current_status() (which locks
     // settings itself). As struct-literal fields these temporaries live to the
     // end of the whole expression — a same-thread relock self-deadlock that
@@ -103,13 +103,13 @@ impl RuleInput {
 }
 
 #[tauri::command]
-pub fn add_rule(app: AppHandle, input: RuleInput) -> CmdResult<Vec<DnsRule>> {
+pub fn add_rule<R: tauri::Runtime>(app: AppHandle<R>, input: RuleInput) -> CmdResult<Vec<DnsRule>> {
     let rule = input.into_rule()?;
     mutate_rules(&app, |rules| rules.push(rule))
 }
 
 #[tauri::command]
-pub fn update_rule(app: AppHandle, rule: DnsRule) -> CmdResult<Vec<DnsRule>> {
+pub fn update_rule<R: tauri::Runtime>(app: AppHandle<R>, rule: DnsRule) -> CmdResult<Vec<DnsRule>> {
     if let Some(error) = validation::pattern_error(&rule.pattern) {
         return Err(error);
     }
@@ -121,12 +121,12 @@ pub fn update_rule(app: AppHandle, rule: DnsRule) -> CmdResult<Vec<DnsRule>> {
 }
 
 #[tauri::command]
-pub fn delete_rule(app: AppHandle, id: Uuid) -> CmdResult<Vec<DnsRule>> {
+pub fn delete_rule<R: tauri::Runtime>(app: AppHandle<R>, id: Uuid) -> CmdResult<Vec<DnsRule>> {
     mutate_rules(&app, |rules| rules.retain(|r| r.id != id))
 }
 
 #[tauri::command]
-pub fn set_rule_enabled(app: AppHandle, id: Uuid, enabled: bool) -> CmdResult<Vec<DnsRule>> {
+pub fn set_rule_enabled<R: tauri::Runtime>(app: AppHandle<R>, id: Uuid, enabled: bool) -> CmdResult<Vec<DnsRule>> {
     mutate_rules(&app, |rules| {
         if let Some(rule) = rules.iter_mut().find(|r| r.id == id) {
             rule.enabled = enabled;
@@ -136,7 +136,7 @@ pub fn set_rule_enabled(app: AppHandle, id: Uuid, enabled: bool) -> CmdResult<Ve
 
 /// Group master switch — flips every rule in the group.
 #[tauri::command]
-pub fn set_group_enabled(app: AppHandle, group: String, enabled: bool) -> CmdResult<Vec<DnsRule>> {
+pub fn set_group_enabled<R: tauri::Runtime>(app: AppHandle<R>, group: String, enabled: bool) -> CmdResult<Vec<DnsRule>> {
     mutate_rules(&app, |rules| {
         for rule in rules.iter_mut().filter(|r| r.group == group) {
             rule.enabled = enabled;
@@ -222,7 +222,7 @@ pub fn get_settings(state: State<AppState>) -> Settings {
 /// Applies the whole settings struct: persists, restarts the server on
 /// port/enabled changes, toggles autostart, and re-syncs zones.
 #[tauri::command]
-pub async fn set_settings(app: AppHandle, settings: Settings) -> CmdResult<Settings> {
+pub async fn set_settings<R: tauri::Runtime>(app: AppHandle<R>, settings: Settings) -> CmdResult<Settings> {
     let (server_changed, login_changed) = {
         let state = app.state::<AppState>();
         let mut current = state.settings.lock().unwrap();
@@ -247,7 +247,7 @@ pub async fn set_settings(app: AppHandle, settings: Settings) -> CmdResult<Setti
     Ok(settings)
 }
 
-fn apply_launch_at_login(app: &AppHandle, enabled: bool) {
+fn apply_launch_at_login<R: tauri::Runtime>(app: &AppHandle<R>, enabled: bool) {
     use tauri_plugin_autostart::ManagerExt;
     let autostart = app.autolaunch();
     let result = if enabled {
@@ -263,7 +263,7 @@ fn apply_launch_at_login(app: &AppHandle, enabled: bool) {
 // MARK: Server status / self-test
 
 #[tauri::command]
-pub fn get_status(app: AppHandle) -> ServerStatus {
+pub fn get_status<R: tauri::Runtime>(app: AppHandle<R>) -> ServerStatus {
     server_control::current_status(&app)
 }
 
@@ -277,7 +277,7 @@ pub struct SelfTestResult {
 /// Sends a real UDP query to the loopback endpoint and compares the answer to
 /// what the rule engine says it should be — end-to-end through the socket.
 #[tauri::command]
-pub async fn run_self_test(app: AppHandle) -> SelfTestResult {
+pub async fn run_self_test<R: tauri::Runtime>(app: AppHandle<R>) -> SelfTestResult {
     let (rule, port) = {
         let state = app.state::<AppState>();
         let rules = state.rules_box.load();
@@ -335,7 +335,7 @@ pub fn get_query_log(state: State<AppState>) -> Vec<QueryLogEntry> {
 }
 
 #[tauri::command]
-pub fn clear_query_log(app: AppHandle, state: State<AppState>) -> Vec<QueryLogEntry> {
+pub fn clear_query_log<R: tauri::Runtime>(app: AppHandle<R>, state: State<AppState>) -> Vec<QueryLogEntry> {
     state.query_log.clear();
     crate::state::publish_query_log(&app);
     Vec::new()
@@ -352,7 +352,7 @@ pub struct HostsScan {
 }
 
 #[tauri::command]
-pub async fn scan_hosts(app: AppHandle) -> HostsScan {
+pub async fn scan_hosts<R: tauri::Runtime>(app: AppHandle<R>) -> HostsScan {
     let rules: Vec<DnsRule> = app.state::<AppState>().rules_box.load().as_ref().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let entries = hosts::load_system_hosts();
@@ -379,7 +379,7 @@ pub struct SuggestionInput {
 /// Adds hosts-import suggestions (group "Imported"), skipping patterns that
 /// already exist — Add / Add All share this path.
 #[tauri::command]
-pub fn add_suggested_rules(app: AppHandle, items: Vec<SuggestionInput>) -> CmdResult<Vec<DnsRule>> {
+pub fn add_suggested_rules<R: tauri::Runtime>(app: AppHandle<R>, items: Vec<SuggestionInput>) -> CmdResult<Vec<DnsRule>> {
     mutate_rules(&app, |rules| {
         for item in items {
             let suggestion = hosts::SuggestedRule {
@@ -413,7 +413,7 @@ pub struct ResolverOverview {
 
 /// Everything the Setup view renders, in one call (backend work off-thread).
 #[tauri::command]
-pub async fn resolver_overview(app: AppHandle) -> ResolverOverview {
+pub async fn resolver_overview<R: tauri::Runtime>(app: AppHandle<R>) -> ResolverOverview {
     let state = app.state::<AppState>();
     let backend = Arc::clone(&state.backend);
     let zones = desired_zones(&state.rules_box.load());
@@ -431,7 +431,7 @@ pub async fn resolver_overview(app: AppHandle) -> ResolverOverview {
 }
 
 #[tauri::command]
-pub async fn resolver_sync(app: AppHandle) -> SyncOutcome {
+pub async fn resolver_sync<R: tauri::Runtime>(app: AppHandle<R>) -> SyncOutcome {
     let state = app.state::<AppState>();
     let backend = Arc::clone(&state.backend);
     let zones = desired_zones(&state.rules_box.load());
@@ -444,7 +444,7 @@ pub async fn resolver_sync(app: AppHandle) -> SyncOutcome {
 }
 
 #[tauri::command]
-pub async fn resolver_unregister_all(app: AppHandle) -> SyncOutcome {
+pub async fn resolver_unregister_all<R: tauri::Runtime>(app: AppHandle<R>) -> SyncOutcome {
     let state = app.state::<AppState>();
     let backend = Arc::clone(&state.backend);
     let outcome = tauri::async_runtime::spawn_blocking(move || backend.unregister_all())
@@ -457,12 +457,12 @@ pub async fn resolver_unregister_all(app: AppHandle) -> SyncOutcome {
 // MARK: Window / lifecycle
 
 #[tauri::command]
-pub fn show_main_window(app: AppHandle) {
+pub fn show_main_window<R: tauri::Runtime>(app: AppHandle<R>) {
     crate::show_window(&app);
 }
 
 /// Quit honoring unregister-on-quit, then a clean server shutdown — `quit()` parity.
 #[tauri::command]
-pub async fn quit_app(app: AppHandle) {
+pub async fn quit_app<R: tauri::Runtime>(app: AppHandle<R>) {
     crate::shutdown_and_exit(app).await;
 }

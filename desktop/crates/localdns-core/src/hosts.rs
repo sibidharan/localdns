@@ -122,6 +122,10 @@ pub fn uncovered(entries: &[HostsEntry], rules: &[DnsRule]) -> Vec<String> {
 
 /// The platform's hosts file: /etc/hosts, or %SystemRoot%\System32\drivers\etc\hosts.
 pub fn system_hosts_path() -> PathBuf {
+    // LOCALDNS_HOSTS_PATH points the importer at any file (tests, previews).
+    if let Some(path) = std::env::var_os("LOCALDNS_HOSTS_PATH") {
+        return PathBuf::from(path);
+    }
     if cfg!(windows) {
         let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
         PathBuf::from(root).join(r"System32\drivers\etc\hosts")

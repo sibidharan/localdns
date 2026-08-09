@@ -17,5 +17,12 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      // The .ts modules are the logic layer; .svelte views are exercised by
+      // the Rust-side command tests + manual/VM E2E, not unit-tested here.
+      include: ["src/lib/**/*.ts"],
+      thresholds: { lines: 80, functions: 80 },
+    },
   },
 });

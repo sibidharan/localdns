@@ -6,6 +6,8 @@ mod paths;
 mod server_control;
 mod settings;
 mod state;
+#[cfg(test)]
+mod tests;
 mod tray;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,7 +25,7 @@ static PAGE_LOADED: AtomicBool = AtomicBool::new(false);
 
 /// Shows and focuses the main window, pushing a fresh query-log snapshot to it
 /// (hidden windows are skipped by the debounced publisher).
-pub(crate) fn show_window(app: &AppHandle) {
+pub(crate) fn show_window<R: tauri::Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
@@ -38,12 +40,12 @@ pub(crate) fn show_window(app: &AppHandle) {
 }
 
 /// Marks the page hidden for the animation-pause CSS (see show_window).
-pub(crate) fn mark_hidden(window: &tauri::WebviewWindow) {
+pub(crate) fn mark_hidden<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) {
     let _ = window.eval("document.documentElement.setAttribute('data-hidden','')");
 }
 
 /// Quit path: honor unregister-on-quit, stop the server cleanly, exit.
-pub(crate) async fn shutdown_and_exit(app: AppHandle) {
+pub(crate) async fn shutdown_and_exit<R: tauri::Runtime>(app: AppHandle<R>) {
     let state = app.state::<AppState>();
     let unregister = state.settings.lock().unwrap().unregister_on_quit;
     if unregister && matches!(state.backend.access(), AccessState::Granted) {

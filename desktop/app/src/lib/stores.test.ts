@@ -195,5 +195,24 @@ describe("initStores wiring", () => {
 
     listeners.get("server-status")!({ payload: serverStatus({ port: 999 }) });
     expect(get(status).port).toBe(999);
+
+    // settings + resolver pushes and the focus catch-up path.
+    listeners.get("settings-changed")!({
+      payload: { port: 999, serverEnabled: false, unregisterOnQuit: false, launchAtLogin: false },
+    });
+    listeners.get("resolver-changed")!({ payload: null });
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(invokeMock).toHaveBeenCalledWith("resolver_overview");
+  });
+});
+
+describe("toasts", () => {
+  it("auto-expire after their ttl", async () => {
+    const { toast, toasts } = await import("./stores");
+    toast("ok", "saved", 5);
+    expect(get(toasts)).toHaveLength(1);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(get(toasts)).toHaveLength(0);
   });
 });

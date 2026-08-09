@@ -27,3 +27,24 @@ pub fn rules_path() -> PathBuf {
 pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // One test covers both branches sequentially: env mutation is
+    // process-global, so splitting these would race under the parallel runner.
+    #[test]
+    fn config_dir_override_and_fallback() {
+        std::env::set_var("LOCALDNS_CONFIG_DIR", "/custom/spot");
+        assert_eq!(config_dir(), PathBuf::from("/custom/spot"));
+        assert_eq!(rules_path(), PathBuf::from("/custom/spot/rules.json"));
+        assert_eq!(settings_path(), PathBuf::from("/custom/spot/settings.json"));
+
+        std::env::remove_var("LOCALDNS_CONFIG_DIR");
+        let dir = config_dir();
+        let leaf = if cfg!(target_os = "linux") { "localdns" } else { "LocalDNS" };
+        assert_eq!(dir.file_name().unwrap(), leaf);
+        assert!(dir.parent().is_some(), "fallback should sit inside the OS config dir");
+    }
+}

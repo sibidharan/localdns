@@ -30,7 +30,7 @@ pub struct ServerStatus {
     pub endpoint_pinned: bool,
 }
 
-pub fn current_status(app: &AppHandle) -> ServerStatus {
+pub fn current_status<R: tauri::Runtime>(app: &AppHandle<R>) -> ServerStatus {
     let state = app.state::<AppState>();
     let settings = state.settings.lock().unwrap().clone();
     let running = state
@@ -51,7 +51,7 @@ pub fn current_status(app: &AppHandle) -> ServerStatus {
     status
 }
 
-pub fn emit_server_status(app: &AppHandle) {
+pub fn emit_server_status<R: tauri::Runtime>(app: &AppHandle<R>) {
     let _ = app.emit("server-status", current_status(app));
     crate::tray::update_status(app);
 }
@@ -59,7 +59,7 @@ pub fn emit_server_status(app: &AppHandle) {
 /// Stops any running server, then starts one when enabled — the swap pattern
 /// of `applyPortChange()`. Handler state (rules snapshot, query log) is shared,
 /// so nothing is lost across restarts.
-pub async fn apply_server_state(app: &AppHandle) {
+pub async fn apply_server_state<R: tauri::Runtime>(app: &AppHandle<R>) {
     let state = app.state::<AppState>();
     let mut guard = state.server.lock().await;
     if let Some(handle) = guard.take() {
@@ -83,7 +83,7 @@ pub async fn apply_server_state(app: &AppHandle) {
 
 /// The rule-engine hook: resolve against the lock-free snapshot, log with
 /// latency, poke the debounced publisher, serialize the response.
-fn make_handler(app: AppHandle) -> Handler {
+fn make_handler<R: tauri::Runtime>(app: AppHandle<R>) -> Handler {
     Arc::new(move |query| {
         let state = app.state::<AppState>();
         let started = Instant::now();
@@ -104,7 +104,7 @@ fn make_handler(app: AppHandle) -> Handler {
 
 /// Debounced (300 ms, cancel-and-restart) resolver sync after rule/port
 /// changes, only when the backend is granted — `scheduleAutoSync` parity.
-pub fn schedule_auto_sync(app: &AppHandle) {
+pub fn schedule_auto_sync<R: tauri::Runtime>(app: &AppHandle<R>) {
     let state = app.state::<AppState>();
     let mut slot = state.autosync.lock().unwrap();
     if let Some(pending) = slot.take() {
@@ -118,7 +118,7 @@ pub fn schedule_auto_sync(app: &AppHandle) {
 }
 
 /// Runs a backend sync off the main thread and notifies the Setup view.
-pub async fn run_resolver_sync(app: &AppHandle) {
+pub async fn run_resolver_sync<R: tauri::Runtime>(app: &AppHandle<R>) {
     let state = app.state::<AppState>();
     if !matches!(state.backend.access(), AccessState::Granted) {
         return;

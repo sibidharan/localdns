@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop
@@ -33,14 +36,19 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: desktop/app
         run: node scripts/prepare-sidecars.mjs
-      - name: Rust tests
-        run: cargo test --workspace
-      - name: Frontend check + tests + build
+      # Runs the whole test suite instrumented and enforces the coverage floor.
+      # Excluded: the app/daemon bootstrap glue (lib.rs/main.rs, service loops)
+      # — validated by the VM E2E playbook, not unit tests.
+      - name: Rust tests + coverage gate (>=80% lines)
+        run: >
+          cargo llvm-cov --workspace --summary-only --fail-under-lines 80
+          --ignore-filename-regex 'app.src-tauri.src.(lib|main)\.rs|helper.localdns-(helper|agentd).src.main\.rs'
+      - name: Frontend check + tests + coverage gate + build
         working-directory: desktop/app
         run: |
           npm ci
           npm run check
-          npm test
+          npx vitest run --coverage
           npm run build
       - name: App compile check
         run: cargo check -p localdns-app

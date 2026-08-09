@@ -13,7 +13,7 @@ use crate::state::AppState;
 
 pub const TRAY_ID: &str = "localdns-tray";
 
-pub fn create(app: &AppHandle) -> tauri::Result<()> {
+pub fn create<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let menu = build_menu(app, &[])?;
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&menu)
@@ -27,7 +27,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-fn on_menu_event(app: &AppHandle, id: &str) {
+fn on_menu_event<R: tauri::Runtime>(app: &AppHandle<R>, id: &str) {
     match id {
         "toggle-server" => {
             let app = app.clone();
@@ -74,10 +74,10 @@ fn describe_entry(entry: &QueryLogEntry) -> String {
     format!("{} → {}", entry.name, outcome)
 }
 
-fn build_menu(
-    app: &AppHandle,
+fn build_menu<R: tauri::Runtime>(
+    app: &AppHandle<R>,
     recent: &[QueryLogEntry],
-) -> tauri::Result<Menu<tauri::Wry>> {
+) -> tauri::Result<Menu<R>> {
     let status = server_control::current_status(app);
     let status_item = MenuItem::with_id(
         app,
@@ -126,7 +126,7 @@ fn build_menu(
     Ok(menu)
 }
 
-fn refresh(app: &AppHandle, recent: &[QueryLogEntry]) {
+fn refresh<R: tauri::Runtime>(app: &AppHandle<R>, recent: &[QueryLogEntry]) {
     // Energy: rebuilding a GTK/appindicator menu means D-Bus churn; skip when
     // nothing the tray shows has actually changed (status line + top-5 ids).
     static LAST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
@@ -164,12 +164,47 @@ fn refresh(app: &AppHandle, recent: &[QueryLogEntry]) {
 }
 
 /// Called on server state changes.
-pub fn update_status(app: &AppHandle) {
+pub fn update_status<R: tauri::Runtime>(app: &AppHandle<R>) {
     let entries = app.state::<AppState>().query_log.entries();
     refresh(app, &entries);
 }
 
 /// Called from the debounced query-log publisher.
-pub fn update_recent_queries(app: &AppHandle, entries: &[QueryLogEntry]) {
+pub fn update_recent_queries<R: tauri::Runtime>(app: &AppHandle<R>, entries: &[QueryLogEntry]) {
     refresh(app, entries);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use localdns_core::QueryLogEntry;
+
+    fn status(running: bool, error: Option<&str>) -> server_control::ServerStatus {
+        server_control::ServerStatus {
+            running,
+            enabled: true,
+            error: error.map(String::from),
+            port: 15353,
+            endpoints: vec!["127.0.0.1:15353".into()],
+            backend: "mock",
+            endpoint_pinned: false,
+        }
+    }
+
+    #[test]
+    fn status_line_variants() {
+        assert_eq!(status_line(&status(true, None)), "Live on 127.0.0.1:15353");
+        assert_eq!(status_line(&status(false, None)), "Stopped");
+        assert!(status_line(&status(false, Some("port busy"))).contains("port busy"));
+    }
+
+    #[test]
+    fn describe_entry_variants() {
+        let mut entry = QueryLogEntry::new("api.dev.test", "A", Outcome::Answered("172.30.0.5".into()));
+        assert_eq!(describe_entry(&entry), "api.dev.test → 172.30.0.5");
+        entry.outcome = Outcome::NoData;
+        assert!(describe_entry(&entry).ends_with("no data"));
+        entry.outcome = Outcome::Nxdomain;
+        assert!(describe_entry(&entry).ends_with("NXDOMAIN"));
+    }
 }

@@ -143,8 +143,19 @@ honest). Locations:
 - Rust: the ported oracle suites + platform-specific units (NRPT ownership
   mapping, agent-reply parsing, dnsmasq config generation), server
   integration tests against real bound sockets, CLI integration tests that
-  drive the actual binary (round-trip, validation, serve + hot reload).
-- Frontend: vitest over the store derivations and IPC wiring with a mocked
-  Tauri bridge.
-- CI runs the Rust + frontend suites on Ubuntu and Windows; releases build
-  from tags (see `.github/workflows/`).
+  drive the actual binary (round-trip, validation, every subcommand, serve +
+  hot reload + SIGTERM unregister), and app-shell tests that call the real
+  `#[tauri::command]` functions on tauri's mock runtime — including a live
+  UDP self-test round-trip through a really-bound server.
+- Frontend: vitest over the store derivations, the command-name mapping, and
+  IPC wiring with a mocked Tauri bridge.
+- **Coverage is gated in CI at ≥80% lines** (`cargo llvm-cov`, per OS) and
+  ≥80% on the frontend logic modules (vitest v8 thresholds). Excluded from
+  the Rust gate: app/daemon bootstrap glue (`lib.rs`/`main.rs`, the service
+  loops) and the D-Bus/registry plumbing that only a live resolved/NRPT can
+  execute — those are what the VM end-to-end passes validate.
+- Determinism seams the suites run through: `LOCALDNS_CONFIG_DIR` (isolated
+  config), `LOCALDNS_BACKEND=mock` (never touches the machine's resolver),
+  `LOCALDNS_HOSTS_PATH` (importer input).
+- CI runs everything on Ubuntu and Windows; releases build from tags (see
+  `.github/workflows/`).
