@@ -399,19 +399,27 @@ async fn serve_async(port: u16, unregister_on_exit: bool) {
     println!("serving on {:?}", handle.bound);
 
     // Initial registration + re-sync whenever the rule file changes on disk
-    // (a `localdns add` from another shell is picked up within ~2s).
+    // (a `localdns add` from another shell is picked up within ~2s). Backend
+    // calls are BLOCKING (D-Bus/named pipe) and zbus panics if invoked from
+    // inside the async runtime, so they always go through spawn_blocking.
     let sync_backend = Arc::clone(&backend);
-    let do_sync = move |rules: &[DnsRule]| {
-        if matches!(sync_backend.access(), AccessState::Granted) {
-            let zones = desired_zones(rules);
-            match sync_backend.sync(&zones, backend_endpoint) {
-                SyncOutcome::Applied { .. } => println!("zones registered"),
-                SyncOutcome::Failed(error) => eprintln!("zone sync failed: {error}"),
-                _ => {}
-            }
+    let do_sync = move |rules: Vec<DnsRule>| {
+        let backend = Arc::clone(&sync_backend);
+        async move {
+            let _ = tokio::task::spawn_blocking(move || {
+                if matches!(backend.access(), AccessState::Granted) {
+                    let zones = desired_zones(&rules);
+                    match backend.sync(&zones, backend_endpoint) {
+                        SyncOutcome::Applied { .. } => println!("zones registered"),
+                        SyncOutcome::Failed(error) => eprintln!("zone sync failed: {error}"),
+                        _ => {}
+                    }
+                }
+            })
+            .await;
         }
     };
-    do_sync(&rules.load());
+    do_sync(rules.load().as_ref().clone()).await;
 
     let watch_rules = Arc::clone(&rules);
     let watcher = tokio::spawn(async move {
@@ -425,7 +433,7 @@ async fn serve_async(port: u16, unregister_on_exit: bool) {
                 let store = RuleStore::load(path.clone());
                 println!("rules.json changed — {} rule(s) loaded", store.rules.len());
                 watch_rules.store(Arc::new(store.rules.clone()));
-                do_sync(&store.rules);
+                do_sync(store.rules).await;
             }
         }
     });
@@ -447,7 +455,8 @@ async fn serve_async(port: u16, unregister_on_exit: bool) {
 
     watcher.abort();
     if unregister_on_exit {
-        let _ = backend.unregister_all();
+        let backend = Arc::clone(&backend);
+        let _ = tokio::task::spawn_blocking(move || backend.unregister_all()).await;
         println!("registrations removed");
     }
     handle.shutdown().await;
