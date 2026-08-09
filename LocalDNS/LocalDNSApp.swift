@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 extension Notification.Name {
@@ -11,6 +12,36 @@ extension Notification.Name {
 /// hidden) and routes Cmd+Q / system quit through the same unregister-on-quit
 /// cleanup as the menu's Quit item.
 final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
+    private var menuBar: MenuBarController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Single-instance guard: a second copy (e.g. a downloaded build opened
+        // while another is running) would fight over the port, the rules file,
+        // and the status item. Hand off to the running instance and vanish —
+        // via exit(), NOT terminate(), so the duplicate can't run the
+        // unregister-on-quit cleanup out from under the primary.
+        let others = NSRunningApplication.runningApplications(
+            withBundleIdentifier: Bundle.main.bundleIdentifier ?? "com.localdns.app"
+        ).filter { $0.processIdentifier != NSRunningApplication.current.processIdentifier }
+        if let primary = others.first {
+            primary.activate()
+            exit(0)
+        }
+
+        // The menu-bar icon is a plain NSStatusItem, not a MenuBarExtra scene:
+        // SwiftUI's MenuBarExtra can silently fail to insert its item on menu
+        // bars owned by third-party managers (Bartender and friends), leaving
+        // the app unreachable. AppKit items insert reliably in the same setup.
+        if let state = AppState.shared {
+            menuBar = MenuBarController(appState: state)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.menuBar == nil, let state = AppState.shared else { return }
+                self.menuBar = MenuBarController(appState: state)
+            }
+        }
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         NotificationCenter.default.post(name: .localDNSOpenMainWindow, object: nil)
         return false
@@ -27,7 +58,6 @@ final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
 struct LocalDNSApp: App {
     @NSApplicationDelegateAdaptor(LocalDNSAppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
-    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
 
     var body: some Scene {
         Window("LocalDNS", id: "main") {
@@ -37,21 +67,94 @@ struct LocalDNSApp: App {
         }
         .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)
+    }
+}
 
-        MenuBarExtra("LocalDNS", systemImage: menuBarSymbol, isInserted: $showMenuBarIcon) {
-            MenuBarContentView()
-                .environmentObject(appState)
+/// Owns the menu-bar status item: inserts/removes it per the Settings toggle
+/// (`showMenuBarIcon`), keeps its symbol in sync with server state, and shows
+/// the compact card in a transient popover on click.
+@MainActor
+final class MenuBarController: NSObject {
+    private let appState: AppState
+    private let popover = NSPopover()
+    private var statusItem: NSStatusItem?
+    private var currentSymbol: String?
+    private var stateCancellable: AnyCancellable?
+    private var defaultsObserver: NSObjectProtocol?
+
+    init(appState: AppState) {
+        self.appState = appState
+        super.init()
+
+        popover.behavior = .transient
+        popover.contentViewController = NSHostingController(
+            rootView: MenuBarContentView().environmentObject(appState))
+
+        // objectWillChange fires *before* values settle — refresh on the next
+        // runloop turn. updateIcon no-ops unless the symbol actually changes,
+        // so the per-query churn costs one string compare.
+        stateCancellable = appState.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateIcon() }
+        // The Settings toggle writes straight to UserDefaults.
+        defaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor in self?.syncInsertion() }
         }
-        .menuBarExtraStyle(.window)
+
+        syncInsertion()
     }
 
-    private var menuBarSymbol: String {
-        if !appState.server.isRunning {
-            return "network.slash"
+    private var iconWanted: Bool {
+        UserDefaults.standard.object(forKey: "showMenuBarIcon") as? Bool ?? true
+    }
+
+    private func syncInsertion() {
+        if iconWanted, statusItem == nil {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            item.autosaveName = "LocalDNSOrb"
+            // Explicitly visible: overrides any stale hidden/parked flag a
+            // previous session (or a menu-bar manager mishap) left behind.
+            item.isVisible = true
+            item.button?.target = self
+            item.button?.action = #selector(togglePopover)
+            statusItem = item
+            currentSymbol = nil
+            updateIcon()
+        } else if !iconWanted, let item = statusItem {
+            popover.performClose(nil)
+            NSStatusBar.system.removeStatusItem(item)
+            statusItem = nil
         }
-        return appState.orbState == .live
-            ? "dot.radiowaves.left.and.right"
-            : "exclamationmark.circle"
+    }
+
+    private func updateIcon() {
+        guard let button = statusItem?.button else { return }
+        let symbol: String
+        if !appState.server.isRunning {
+            symbol = "network.slash"
+        } else {
+            symbol = appState.orbState == .live
+                ? "dot.radiowaves.left.and.right"
+                : "exclamationmark.circle"
+        }
+        guard symbol != currentSymbol else { return }
+        currentSymbol = symbol
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "LocalDNS")
+    }
+
+    @objc private func togglePopover() {
+        guard let button = statusItem?.button else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            // Accessory app: activate so the popover takes key and transient
+            // click-outside dismissal works.
+            NSApplication.shared.activate()
+            popover.contentViewController?.view.window?.makeKey()
+        }
     }
 }
 
@@ -59,7 +162,6 @@ struct LocalDNSApp: App {
 /// master toggle, recent queries, Open / Quit. No custom fills.
 private struct MenuBarContentView: View {
     @EnvironmentObject var appState: AppState
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -109,8 +211,10 @@ private struct MenuBarContentView: View {
 
             HStack {
                 Button("Open LocalDNS") {
-                    openWindow(id: "main")
-                    NSApplication.shared.activate()
+                    // Same path as Spotlight-relaunch: ContentView observes
+                    // this and opens the window (works from AppKit hosting,
+                    // where the openWindow environment action isn't available).
+                    NotificationCenter.default.post(name: .localDNSOpenMainWindow, object: nil)
                 }
                 Spacer()
                 Button("Quit") {
