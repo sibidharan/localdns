@@ -1,0 +1,21 @@
+[package]
+name = "localdns-cli"
+version.workspace = true
+edition.workspace = true
+description = "localdns — the headless companion to the LocalDNS desktop app: manage the same rules.json, serve wildcard DNS, and register zones with the OS resolver from scripts and servers."
+
+[[bin]]
+name = "localdns"
+path = "src/main.rs"
+
+[dependencies]
+localdns-core = { path = "../../crates/localdns-core" }
+localdns-server = { path = "../../crates/localdns-server" }
+localdns-platform = { path = "../../crates/localdns-platform" }
+clap = { version = "4", features = ["derive"] }
+tokio = { workspace = true, features = ["signal"] }
+serde_json.workspace = true
+arc-swap.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

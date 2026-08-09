@@ -58,6 +58,24 @@ nulls, uppercase UUIDs): copy `rules.json` between machines/OSes freely.
 - Linux: `~/.config/localdns/rules.json`
 - macOS app: `~/Library/Containers/com.localdns.app/Data/Library/Application Support/LocalDNS/rules.json`
 
+## Headless / CLI
+
+`localdns` (shipped in the deb/rpm, or `cargo build -p localdns-cli`) manages
+the SAME rules.json as the GUI and runs the same engine — for lab boxes,
+servers, and provisioning scripts:
+
+```sh
+localdns add '*.myapp.test' 172.30.0.3   # validated like the GUI
+localdns serve                            # foreground daemon; hot-reloads rules.json,
+                                          # auto-registers zones via the agent
+systemctl --user enable --now localdns    # or run it as a user service
+localdns status / sync / unregister / import-hosts --apply / self-test
+```
+
+If you're a dnsmasq person, dnsmasq remains a fine answer — this exists for
+machines that keep systemd-resolved, and for fleets sharing the desktop app's
+rules format.
+
 ## Building
 
 ```sh

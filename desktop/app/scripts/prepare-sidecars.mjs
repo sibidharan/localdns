@@ -36,7 +36,7 @@ if (process.platform === "win32") {
   );
   console.log(`[sidecars] staged localdns-helper-${triple}.exe`);
 } else if (process.platform === "linux") {
-  sh("cargo build --release -p localdns-agentd", workspace);
+  sh("cargo build --release -p localdns-agentd -p localdns-cli", workspace);
   console.log("[sidecars] localdns-agentd built (bundled via deb/rpm files map)");
 } else {
   console.log("[sidecars] nothing to stage on this platform");

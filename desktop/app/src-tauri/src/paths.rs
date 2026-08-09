@@ -1,24 +1,4 @@
-//! Per-OS locations for rules.json and settings.json.
-//!
-//! Windows: %APPDATA%\LocalDNS\        Linux: ~/.config/localdns/
-//! macOS (dev host): ~/Library/Application Support/LocalDNS/ — the same JSON
-//! schema as the sandboxed Mac app, so users can copy rules.json across.
+//! Delegates to the shared locations in localdns-core so the CLI and the
+//! app always agree on where rules.json/settings.json live.
 
-use std::path::PathBuf;
-
-pub fn config_dir() -> PathBuf {
-    let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-    if cfg!(target_os = "linux") {
-        base.join("localdns")
-    } else {
-        base.join("LocalDNS")
-    }
-}
-
-pub fn rules_path() -> PathBuf {
-    config_dir().join("rules.json")
-}
-
-pub fn settings_path() -> PathBuf {
-    config_dir().join("settings.json")
-}
+pub use localdns_core::paths::{config_dir, rules_path, settings_path};

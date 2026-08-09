@@ -8,6 +8,7 @@
 
 pub mod hosts;
 pub mod message;
+pub mod paths;
 pub mod query_log;
 pub mod rules;
 pub mod validation;

@@ -4,6 +4,7 @@ members = [
     "crates/localdns-core",
     "crates/localdns-server",
     "crates/localdns-platform",
+    "cli/localdns-cli",
     "helper/localdns-helper",
     "helper/localdns-agentd",
     "app/src-tauri",

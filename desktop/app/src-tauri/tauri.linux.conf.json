@@ -8,7 +8,9 @@
           "/usr/lib/systemd/system/localdns-agentd.service": "linux/localdns-agentd.service",
           "/usr/share/dbus-1/system.d/org.localdns.Agent1.conf": "linux/org.localdns.Agent1.conf",
           "/usr/share/polkit-1/actions/org.localdns.agent.policy": "linux/org.localdns.agent.policy",
-          "/usr/lib/NetworkManager/conf.d/90-localdns.conf": "linux/90-localdns-unmanaged.conf"
+          "/usr/lib/NetworkManager/conf.d/90-localdns.conf": "linux/90-localdns-unmanaged.conf",
+          "/usr/bin/localdns": "../../target/release/localdns",
+          "/usr/lib/systemd/user/localdns.service": "linux/localdns.service"
         },
         "postInstallScript": "linux/postinst.sh",
         "preRemoveScript": "linux/prerm.sh"
@@ -19,7 +21,9 @@
           "/usr/lib/systemd/system/localdns-agentd.service": "linux/localdns-agentd.service",
           "/usr/share/dbus-1/system.d/org.localdns.Agent1.conf": "linux/org.localdns.Agent1.conf",
           "/usr/share/polkit-1/actions/org.localdns.agent.policy": "linux/org.localdns.agent.policy",
-          "/usr/lib/NetworkManager/conf.d/90-localdns.conf": "linux/90-localdns-unmanaged.conf"
+          "/usr/lib/NetworkManager/conf.d/90-localdns.conf": "linux/90-localdns-unmanaged.conf",
+          "/usr/bin/localdns": "../../target/release/localdns",
+          "/usr/lib/systemd/user/localdns.service": "linux/localdns.service"
         },
         "postInstallScript": "linux/postinst.sh",
         "preRemoveScript": "linux/prerm.sh"

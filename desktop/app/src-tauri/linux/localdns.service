@@ -1,0 +1,12 @@
+[Unit]
+Description=LocalDNS wildcard DNS server (headless)
+Documentation=https://github.com/sibidharan/localdns
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/localdns serve
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
