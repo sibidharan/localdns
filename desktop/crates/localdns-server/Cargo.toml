@@ -1,0 +1,11 @@
+[package]
+name = "localdns-server"
+version.workspace = true
+edition.workspace = true
+description = "Loopback-only UDP+TCP DNS server and self-test client for LocalDNS (tokio port of DNSServer.swift / DNSClient.swift)."
+
+[dependencies]
+localdns-core = { path = "../localdns-core" }
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true

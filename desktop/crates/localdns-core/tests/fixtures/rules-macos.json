@@ -1,0 +1,18 @@
+[
+  {
+    "enabled" : true,
+    "group" : "Docker",
+    "id" : "6BA7B810-9DAD-11D1-80B4-00C04FD430C8",
+    "ipv4" : "172.30.0.3",
+    "pattern" : "*.myapp.test",
+    "ttl" : 120
+  },
+  {
+    "enabled" : false,
+    "group" : "Default",
+    "id" : "0F14D0AB-9605-4A62-A9E4-5ED26688389B",
+    "ipv6" : "fd00::1",
+    "pattern" : "exact.test",
+    "ttl" : 60
+  }
+]

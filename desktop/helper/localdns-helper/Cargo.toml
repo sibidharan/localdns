@@ -1,0 +1,20 @@
+[package]
+name = "localdns-helper"
+version.workspace = true
+edition.workspace = true
+description = "LocalDNS Windows helper: demand-start LocalSystem service that writes NRPT rules (only its own, tagged by Comment) on behalf of the unprivileged GUI, over a named pipe."
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+localdns-core = { path = "../../crates/localdns-core" }
+localdns-platform = { path = "../../crates/localdns-platform" }
+tokio = { workspace = true, features = ["net", "io-util", "rt", "time", "macros", "sync"] }
+windows-service = "0.8"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+] }

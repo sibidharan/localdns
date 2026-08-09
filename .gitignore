@@ -14,5 +14,9 @@ xcuserdata/
 .swiftpm/
 .build/
 
-# Unrelated local project (not part of LocalDNS)
-/desktop/
+# Desktop port (Rust/Tauri) build artifacts
+/desktop/target/
+/desktop/app/node_modules/
+/desktop/app/dist/
+/desktop/app/src-tauri/gen/
+/desktop/app/src-tauri/binaries/

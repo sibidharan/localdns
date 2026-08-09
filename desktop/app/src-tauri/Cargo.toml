@@ -1,0 +1,33 @@
+[package]
+name = "localdns-app"
+version.workspace = true
+edition.workspace = true
+description = "LocalDNS for Windows & Linux — wildcard DNS for local development."
+
+[lib]
+name = "localdns_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# tauri build enables this; plain `cargo build` without it produces a DEV
+# binary that tries to load the Vite dev server instead of embedded assets.
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+localdns-core = { path = "../../crates/localdns-core" }
+localdns-server = { path = "../../crates/localdns-server" }
+localdns-platform = { path = "../../crates/localdns-platform" }
+tauri = { version = "2", features = ["tray-icon", "image-png", "devtools"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+arc-swap.workspace = true
+tokio.workspace = true
+dirs.workspace = true
+tempfile.workspace = true

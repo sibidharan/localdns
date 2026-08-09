@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <vendor>LocalDNS</vendor>
+  <vendor_url>https://github.com/sibidharan/LocalDNS</vendor_url>
+
+  <action id="org.localdns.agent.configure">
+    <description>Configure LocalDNS zone routing</description>
+    <message>Authentication is required to change local DNS zone routing</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <!-- The user at the local console syncs without a prompt; the one-time
+           consent is installing the package. -->
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

@@ -1,0 +1,15 @@
+[package]
+name = "localdns-agentd"
+version.workspace = true
+edition.workspace = true
+description = "LocalDNS Linux agent: owns the localdns0 dummy interface, applies per-zone routing to systemd-resolved (SetLinkDomains/SetLinkDNSEx), re-applies after resolved restarts and reboots, and exposes org.localdns.Agent1 on the system bus (polkit-gated)."
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+localdns-core = { path = "../../crates/localdns-core" }
+tokio = { workspace = true, features = ["rt", "macros", "time", "sync", "signal"] }
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+futures-util = { version = "0.3", default-features = false }

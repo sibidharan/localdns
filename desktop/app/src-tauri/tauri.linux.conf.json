@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/lib/localdns/localdns-agentd": "../../target/release/localdns-agentd",
+          "/usr/lib/systemd/system/localdns-agentd.service": "linux/localdns-agentd.service",
+          "/usr/share/dbus-1/system.d/org.localdns.Agent1.conf": "linux/org.localdns.Agent1.conf",
+          "/usr/share/polkit-1/actions/org.localdns.agent.policy": "linux/org.localdns.agent.policy",
+          "/usr/lib/NetworkManager/conf.d/90-localdns.conf": "linux/90-localdns-unmanaged.conf"
+        },
+        "postInstallScript": "linux/postinst.sh",
+        "preRemoveScript": "linux/prerm.sh"
+      },
+      "rpm": {
+        "files": {
+          "/usr/lib/localdns/localdns-agentd": "../../target/release/localdns-agentd",
+          "/usr/lib/systemd/system/localdns-agentd.service": "linux/localdns-agentd.service",
+          "/usr/share/dbus-1/system.d/org.localdns.Agent1.conf": "linux/org.localdns.Agent1.conf",
+          "/usr/share/polkit-1/actions/org.localdns.agent.policy": "linux/org.localdns.agent.policy",
+          "/usr/lib/NetworkManager/conf.d/90-localdns.conf": "linux/90-localdns-unmanaged.conf"
+        },
+        "postInstallScript": "linux/postinst.sh",
+        "preRemoveScript": "linux/prerm.sh"
+      }
+    }
+  }
+}

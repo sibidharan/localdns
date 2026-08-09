@@ -1,0 +1,14 @@
+[package]
+name = "localdns-core"
+version.workspace = true
+edition.workspace = true
+description = "Pure LocalDNS logic: DNS wire codec, rule matching, validation, hosts import, query log. 1:1 port of the macOS app's Core layer."
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

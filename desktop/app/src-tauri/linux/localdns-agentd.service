@@ -1,0 +1,30 @@
+[Unit]
+Description=LocalDNS resolver agent (systemd-resolved zone routing)
+Documentation=https://github.com/sibidharan/LocalDNS
+After=systemd-resolved.service
+Wants=systemd-resolved.service
+
+[Service]
+Type=dbus
+BusName=org.localdns.LocalDNS
+ExecStart=/usr/lib/localdns/localdns-agentd
+Restart=on-failure
+RestartSec=2
+
+# Hardening: root, but only what a link-owning resolved scribe needs.
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+StateDirectory=localdns
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+RestrictRealtime=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
