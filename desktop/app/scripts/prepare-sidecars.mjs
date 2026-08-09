@@ -26,7 +26,7 @@ function hostTriple() {
 }
 
 if (process.platform === "win32") {
-  sh("cargo build --release -p localdns-helper", workspace);
+  sh("cargo build --release -p localdns-helper -p localdns-cli", workspace);
   const triple = hostTriple();
   const dest = join(appDir, "src-tauri", "binaries");
   mkdirSync(dest, { recursive: true });
@@ -34,7 +34,11 @@ if (process.platform === "win32") {
     join(workspace, "target", "release", "localdns-helper.exe"),
     join(dest, `localdns-helper-${triple}.exe`),
   );
-  console.log(`[sidecars] staged localdns-helper-${triple}.exe`);
+  copyFileSync(
+    join(workspace, "target", "release", "localdns.exe"),
+    join(dest, `localdns-${triple}.exe`),
+  );
+  console.log(`[sidecars] staged helper + cli for ${triple}`);
 } else if (process.platform === "linux") {
   sh("cargo build --release -p localdns-agentd -p localdns-cli", workspace);
   console.log("[sidecars] localdns-agentd built (bundled via deb/rpm files map)");

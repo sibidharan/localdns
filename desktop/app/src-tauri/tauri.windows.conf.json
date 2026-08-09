@@ -1,7 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
-    "externalBin": ["binaries/localdns-helper"],
+    "externalBin": [
+      "binaries/localdns-helper",
+      "binaries/localdns"
+    ],
     "windows": {
       "nsis": {
         "installMode": "perMachine",
