@@ -26,18 +26,6 @@ extension View {
     func interactiveGlassCircle() -> some View {
         modifier(InteractiveGlassCircleModifier())
     }
-
-    /// Tags the section's primary glass action for morphing inside the shared
-    /// GlassEffectContainer (26+; no-op before). All primary actions share one
-    /// ID, so switching sections or states morphs the pill.
-    @ViewBuilder
-    func primaryGlassID(_ namespace: Namespace.ID) -> some View {
-        if #available(macOS 26.0, *) {
-            glassEffectID("section-primary", in: namespace)
-        } else {
-            self
-        }
-    }
 }
 
 // MARK: - Glass shell context

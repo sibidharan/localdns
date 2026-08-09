@@ -30,12 +30,11 @@ enum AppSection: String, CaseIterable, Identifiable {
 /// Window root: sidebar navigation plus a detail column on the standard window
 /// background. The action bar is hoisted here so it PERSISTS across section
 /// switches — only the content below it transitions (`.id(section)`), so the
-/// orb and glass shell never re-animate on tab changes. The per-section primary
-/// action still morphs inside the shared GlassEffectContainer.
+/// orb and glass shell never re-animate on tab changes. Per-section actions
+/// live in the window titlebar (Helm-style uniform icon buttons).
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @State private var section: AppSection? = .rules
-    @Namespace private var barNamespace
 
     var body: some View {
         NavigationSplitView {
@@ -48,21 +47,28 @@ struct ContentView: View {
             detailColumn
                 .background { TopologyBackdrop() }
         }
+        // Helm-style: per-section actions live in the WINDOW titlebar, trailing
+        // edge. The toolbar must hang off the split view (window scope) — when
+        // attached to the detail column it renders leading, next to the
+        // sidebar toggle (verified by screenshot).
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                sectionActions
+            }
+        }
     }
 
     private var detailColumn: some View {
         Group {
             if #available(macOS 26.0, *) {
-                GlassEffectContainer(spacing: 8) {
-                    sectionContent
-                        .scrollEdgeEffectStyle(.soft, for: .top)
-                        .safeAreaBar(edge: .top, spacing: 0) {
-                            PersistentActionBar { sectionActions }
-                        }
-                }
+                sectionContent
+                    .scrollEdgeEffectStyle(.soft, for: .top)
+                    .safeAreaBar(edge: .top, spacing: 0) {
+                        PersistentActionBar()
+                    }
             } else {
                 VStack(spacing: 0) {
-                    PersistentActionBar { sectionActions }
+                    PersistentActionBar()
                     Divider()
                     sectionContent
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -89,43 +95,42 @@ struct ContentView: View {
         .animation(.spring(duration: 0.3), value: section)
     }
 
-    /// The bar's action slot for the current section. Primary actions share one
-    /// glassEffectID so switching sections morphs the pill in place.
+    /// Titlebar action cluster for the current section — uniform icon buttons,
+    /// Helm-style, so the cluster never changes shape between sections. Each
+    /// button keeps a full title (used for accessibility + tooltip) while only
+    /// the icon shows, per Apple's Liquid Glass toolbar guidance.
     @ViewBuilder
     private var sectionActions: some View {
         switch section ?? .rules {
         case .rules:
             Button("Add Rule", systemImage: "plus") { appState.showingNewRuleSheet = true }
-                .glassProminentButton()
-                .primaryGlassID(barNamespace)
+                .labelStyle(.iconOnly)
         case .import:
             if appState.importSuggestions != nil, !appState.addableImportSuggestions.isEmpty {
-                Button("Add All") { appState.addAllSuggestedRules() }
-                    .glassButton()
+                Button("Add All Suggestions", systemImage: "plus.square.on.square") {
+                    appState.addAllSuggestedRules()
+                }
+                .labelStyle(.iconOnly)
             }
             Button("Scan /etc/hosts", systemImage: "doc.text.magnifyingglass") { appState.scanHosts() }
-                .glassProminentButton()
-                .primaryGlassID(barNamespace)
+                .labelStyle(.iconOnly)
         case .setup:
             if !appState.resolverAccessGranted {
                 Button("Grant Access…", systemImage: "folder.badge.plus") {
                     appState.grantPanelRequestID = UUID()
                 }
-                .glassProminentButton()
-                .primaryGlassID(barNamespace)
+                .labelStyle(.iconOnly)
             } else if !appState.resolverAccessWritable {
                 Button("Re-check Access", systemImage: "arrow.clockwise") { appState.recheckResolverAccess() }
-                    .glassProminentButton()
-                    .primaryGlassID(barNamespace)
+                    .labelStyle(.iconOnly)
             } else {
                 Button("Re-sync Now", systemImage: "arrow.triangle.2.circlepath") { appState.syncResolver() }
-                    .glassProminentButton()
-                    .primaryGlassID(barNamespace)
+                    .labelStyle(.iconOnly)
                     .disabled(appState.resolverPlan.isNoop)
             }
         case .diagnostics:
             Button("Clear Log", systemImage: "trash") { appState.clearLog() }
-                .glassButton()
+                .labelStyle(.iconOnly)
                 .disabled(appState.queryEntries.isEmpty)
         case .settings:
             EmptyView()

@@ -12,7 +12,7 @@ struct LocalDNSApp: App {
                 .environmentObject(appState)
                 .frame(minWidth: 840, minHeight: 560)
         }
-        .windowToolbarStyle(.unified(showsTitle: false))
+        .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)
 
         MenuBarExtra("LocalDNS", systemImage: menuBarSymbol) {

@@ -1,19 +1,17 @@
 import SwiftUI
 
 /// The floating functional layer above every section: orb, wordmark + one-line
-/// status, master switch, and the current section's actions.
+/// status, and the master switch. Per-section actions live in the window
+/// titlebar (Helm-style); this bar only carries global status + the switch.
 ///
-/// The bar is owned by ContentView and persists across section switches — only
-/// the `actions` slot swaps (the primary pill morphs via the shared
-/// `glassEffectID` "section-primary"). This is what keeps the orb's breathing
-/// animation and the glass shell from re-animating on every tab change.
+/// The bar is owned by ContentView and persists across section switches, so
+/// the orb's breathing animation and the glass shell never re-animate.
 ///
 /// macOS 26: presented as a `.safeAreaBar`, so section content scrolls *beneath*
 /// it and the glass actually refracts something; a soft top scroll-edge effect
 /// keeps text legible. macOS 14–25: the same bar pinned above a Divider.
-struct PersistentActionBar<Actions: View>: View {
+struct PersistentActionBar: View {
     @EnvironmentObject var appState: AppState
-    @ViewBuilder var actions: () -> Actions
 
     var body: some View {
         HStack(spacing: 12) {
@@ -27,24 +25,19 @@ struct PersistentActionBar<Actions: View>: View {
             .interactiveGlassCircle()
             .help("Run self-test")
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text("LocalDNS")
-                    .font(Theme.heading(.headline))
-                Text(appState.statusLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            // The wordmark lives in the window titlebar (trailing toolbar items
+            // require a visible title on macOS 26) — the bar carries status only.
+            Text(appState.statusLine)
+                .font(.callout)
+                .foregroundStyle(.secondary)
 
             Spacer()
 
-            HStack(spacing: 10) {
-                Toggle("Server", isOn: Binding(
-                    get: { appState.serverEnabled },
-                    set: { appState.serverEnabled = $0 }))
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                actions()
-            }
+            Toggle("Server", isOn: Binding(
+                get: { appState.serverEnabled },
+                set: { appState.serverEnabled = $0 }))
+                .toggleStyle(.switch)
+                .controlSize(.small)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 7)
