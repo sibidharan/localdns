@@ -1,10 +1,33 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    /// Posted by the app delegate when the app is re-opened (Spotlight/Finder/
+    /// Launchpad relaunch) while already running — ContentView opens the window.
+    static let localDNSOpenMainWindow = Notification.Name("LocalDNSOpenMainWindow")
+}
+
+/// Handles relaunch-to-open-window (essential when the menu-bar icon is
+/// hidden) and routes Cmd+Q / system quit through the same unregister-on-quit
+/// cleanup as the menu's Quit item.
+final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        NotificationCenter.default.post(name: .localDNSOpenMainWindow, object: nil)
+        return false
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        AppState.shared?.performQuitCleanup()
+        return .terminateNow
+    }
+}
+
 @MainActor
 @main
 struct LocalDNSApp: App {
+    @NSApplicationDelegateAdaptor(LocalDNSAppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
+    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
 
     var body: some Scene {
         Window("LocalDNS", id: "main") {
@@ -15,7 +38,7 @@ struct LocalDNSApp: App {
         .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)
 
-        MenuBarExtra("LocalDNS", systemImage: menuBarSymbol) {
+        MenuBarExtra("LocalDNS", systemImage: menuBarSymbol, isInserted: $showMenuBarIcon) {
             MenuBarContentView()
                 .environmentObject(appState)
         }

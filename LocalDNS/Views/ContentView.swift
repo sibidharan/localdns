@@ -34,6 +34,7 @@ enum AppSection: String, CaseIterable, Identifiable {
 /// live in the window titlebar (Helm-style uniform icon buttons).
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.openWindow) private var openWindow
     @State private var section: AppSection? = .rules
 
     var body: some View {
@@ -55,6 +56,12 @@ struct ContentView: View {
             ToolbarItemGroup(placement: .primaryAction) {
                 sectionActions
             }
+        }
+        // Relaunched while already running (Spotlight/Finder) — reopen the
+        // window. This is the only way back in when the menu-bar icon is hidden.
+        .onReceive(NotificationCenter.default.publisher(for: .localDNSOpenMainWindow)) { _ in
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 

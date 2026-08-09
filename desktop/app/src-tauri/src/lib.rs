@@ -100,6 +100,16 @@ pub fn run() {
                 .tray_available
                 .store(tray_ok, Ordering::Release);
 
+            // LSUIElement parity: the app lives in the tray, not the taskbar
+            // (Windows taskbar / X11 EWMH taskbars; close already hides to
+            // tray). Only when the tray actually initialized — a DE without
+            // AppIndicator keeps the taskbar entry so the app stays reachable.
+            if tray_ok {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_skip_taskbar(true);
+                }
+            }
+
             // Autostart launches with --hidden: live in the tray until opened.
             if std::env::args().any(|arg| arg == "--hidden") {
                 if let Some(window) = app.get_webview_window("main") {

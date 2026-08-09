@@ -135,6 +135,7 @@ final class AppState: ObservableObject {
         server = DNSServer(port: UInt16(clamping: initialPort))
         installServerHandler()
         observeServer()
+        AppState.shared = self
         // Pick up a previously granted /etc/resolver access bookmark, if any.
         if let url = ResolverAccess.resolveBookmark() {
             resolverAccessGranted = true
@@ -464,12 +465,21 @@ final class AppState: ObservableObject {
 
     // MARK: Quit
 
-    /// Honors `unregisterOnQuit`: removes our /etc/resolver files first
-    /// (a direct, instant write when folder access is granted).
-    func quit() {
+    /// Set in init; used by the app delegate to route Cmd+Q / system quit
+    /// through the same cleanup as the menu's Quit item.
+    static weak var shared: AppState?
+
+    /// The unregister-on-quit cleanup, shared by quit() and the app delegate's
+    /// applicationShouldTerminate (a direct, instant write when folder access
+    /// is granted).
+    func performQuitCleanup() {
         if unregisterOnQuit, resolverAccessGranted {
             _ = ResolverSetup.uninstallAll()
         }
+    }
+
+    func quit() {
+        performQuitCleanup()
         NSApplication.shared.terminate(nil)
     }
 }
