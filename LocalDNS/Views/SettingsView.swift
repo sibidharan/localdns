@@ -3,6 +3,7 @@ import SwiftUI
 /// Settings: standard grouped form. No custom surfaces.
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
+    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var portDraft = ""
 
     var body: some View {
@@ -39,6 +40,13 @@ struct SettingsView: View {
                         Text(error)
                             .font(.caption)
                             .foregroundStyle(.red)
+                    }
+                    Toggle("Show LocalDNS in the menu bar", isOn: $showMenuBarIcon)
+                    if !showMenuBarIcon {
+                        Label("Hidden from the menu bar, LocalDNS keeps running in the background. Reopen it from Spotlight or Finder to get back to this window.",
+                              systemImage: "eye.slash")
+                            .font(.caption)
+                            .foregroundStyle(Theme.attention)
                     }
                     Toggle("Remove /etc/resolver entries when quitting", isOn: Binding(
                         get: { appState.unregisterOnQuit },
