@@ -33,5 +33,10 @@ dirs.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
-tauri = { version = "2", features = ["test"] }
 tempfile = "3"
+
+# tauri's "test" feature changes the app test binary's DLL import surface on
+# Windows (STATUS_ENTRYPOINT_NOT_FOUND on runners), so the mock-runtime test
+# suite runs on macOS/Linux only — the commands are OS-agnostic.
+[target.'cfg(not(windows))'.dev-dependencies]
+tauri = { version = "2", features = ["test"] }

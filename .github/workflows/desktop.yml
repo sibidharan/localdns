@@ -40,9 +40,22 @@ jobs:
       # Excluded: the app/daemon bootstrap glue (lib.rs/main.rs, service loops)
       # — validated by the VM E2E playbook, not unit tests.
       - name: Rust tests + coverage gate (>=80% lines)
+        if: runner.os != 'Windows'
         run: >
           cargo llvm-cov --workspace --summary-only --fail-under-lines 80
           --ignore-filename-regex 'app.src-tauri.src.(lib|main)\.rs|helper.localdns-(helper|agentd).src.main\.rs'
+      # Windows: the app crate's mock-runtime suite is macOS/Linux-only (see
+      # its Cargo.toml), so the shell would read 0% here and poison the gate;
+      # its logic is measured on the other two OSes. Everything else gates.
+      - name: Rust tests + coverage gate (>=80% lines, sans app shell)
+        if: runner.os == 'Windows'
+        run: >
+          cargo llvm-cov --workspace --exclude localdns-app --summary-only
+          --fail-under-lines 80
+          --ignore-filename-regex 'helper.localdns-(helper|agentd).src.main\.rs'
+      - name: App crate tests (uninstrumented)
+        if: runner.os == 'Windows'
+        run: cargo test -p localdns-app
       - name: Frontend check + tests + coverage gate + build
         working-directory: desktop/app
         run: |

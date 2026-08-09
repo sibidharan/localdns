@@ -1,7 +1,7 @@
 // The api object is a 1:1 mapping onto #[tauri::command] names — this pins
 // every command string and its argument shape against typos.
 
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn().mockResolvedValue(null);
 vi.mock("@tauri-apps/api/core", () => ({

@@ -6,7 +6,7 @@ mod paths;
 mod server_control;
 mod settings;
 mod state;
-#[cfg(test)]
+#[cfg(all(test, not(windows)))]
 mod tests;
 mod tray;
 
