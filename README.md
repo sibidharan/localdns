@@ -10,13 +10,81 @@ Point `*.myapp.test` at `172.30.0.3` and every hostname under it —
 `api.myapp.test`, `db.myapp.test`, anything — resolves, with zero per-host
 bookkeeping. LocalDNS runs a tiny DNS server on loopback only and registers
 your zones with the operating system's resolver, so every app (browsers
-included) just works.
+included) just works. Everything else on your machine resolves exactly as
+before: LocalDNS answers **only** the zones you configure.
 
-**Downloads**: grab installers from [Releases](https://github.com/sibidharan/localdns/releases)
-— native macOS app, Windows installer (NSIS), and Linux `.deb` / `.rpm` /
-`.AppImage`. The Windows/Linux desktop apps live in [`desktop/`](desktop/)
-(Rust + Tauri) with full feature parity; the sections below describe the
-native macOS app.
+## Get LocalDNS
+
+| Platform | How | Price |
+|---|---|---|
+| **macOS** | Native SwiftUI app — *coming to the Mac App Store* (build from source today, see below) | Paid — buying it funds development of all platforms |
+| **Windows** | [Installer from Releases](https://github.com/sibidharan/localdns/releases) (NSIS, includes the helper service) | Free |
+| **Linux** | [.deb / .rpm / .AppImage from Releases](https://github.com/sibidharan/localdns/releases) (includes the `localdns` CLI for headless boxes) | Free |
+
+The entire codebase — macOS app, Windows/Linux apps, CLI — is open source in
+this repository. The Mac App Store build is the same code with Apple's
+signing, notarization, sandboxing, and automatic updates; if LocalDNS saves
+you time, buying it there is how you say thanks. On Windows and Linux it is
+simply free.
+
+## Why LocalDNS instead of…
+
+**…`/etc/hosts`?** Hosts files can't do wildcards. Ten services under
+`*.myapp.test` means ten lines to maintain — and another edit every time a
+service appears. LocalDNS collapses them to one rule (and can import your
+existing hosts entries and suggest the wildcards that replace them — it never
+modifies the hosts file itself).
+
+**…dnsmasq?** dnsmasq is excellent, and if you already run it happily, keep
+it — `address=/myapp.test/172.30.0.3` does this job. The gap LocalDNS fills
+is *integration with the resolver your OS already runs*:
+
+- On modern Linux, systemd-resolved owns the stub resolver. Wiring dnsmasq in
+  means winning a fight over port 53, changing NetworkManager's `dns=` mode,
+  or replacing resolved entirely. LocalDNS instead **cooperates** with
+  resolved: per-zone routing domains on a dedicated link, server on an
+  unprivileged port, nothing else touched — your VPN's DNS, mDNS, and
+  corporate split-horizon setups keep working.
+- On macOS there is no dnsmasq at all unless you install and babysit it;
+  LocalDNS uses the native `/etc/resolver` mechanism Apple built for exactly
+  this.
+- On Windows the equivalent hand-rolled setup (NRPT rules + something
+  answering on port 53) is genuinely fiddly; LocalDNS automates it with a
+  demand-start service and cleans up after itself.
+- Same rules, same UI, same behavior on all three OSes — plus guards dnsmasq
+  won't give you (public-suffix wildcard protection, `.local`/mDNS warnings,
+  live per-query diagnostics, a self-test button).
+
+**…systemd-resolved alone?** resolved routes zones to DNS servers but cannot
+answer `*.zone → address` itself. LocalDNS is the missing answering half,
+attached the way resolved wants.
+
+## How it works on every OS
+
+The same design everywhere: an **unprivileged** DNS server on loopback, and a
+small, auditable, per-OS mechanism that only *registers zones* — the one-time
+consent is visible, and no root process runs routinely.
+
+| OS | Zone registration | Server binds | Privilege model |
+|---|---|---|---|
+| macOS | `/etc/resolver/<zone>` files (native Apple mechanism) | `127.0.0.1:15353` | One visible `sudo` command once, then a sandboxed security-scoped grant |
+| Windows | NRPT rules tagged `Comment=LocalDNS` | `127.65.43.53:53` + `127.0.0.1:15353` (NRPT has no port field) | Demand-start `localdns-helper` service installed once by the installer; stops itself when idle |
+| Linux | systemd-resolved routing domains on a dedicated `localdns0` link | `127.0.0.1:15353` (resolved supports ports) | Hardened `localdns-agentd` (CAP_NET_ADMIN only, polkit-gated D-Bus API); survives resolved restarts and reboots |
+
+Ownership is always explicit (`# LocalDNS` marker line, NRPT comment, the
+dedicated link): LocalDNS never touches resolver state it didn't create.
+Anything foreign covering one of your zones is reported as **Managed
+elsewhere** and left alone. "Unregister All" — or uninstalling — removes
+every trace.
+
+The Windows/Linux desktop apps live in [`desktop/`](desktop/) (Rust +
+Tauri, full feature parity, ~2 MB installers). Headless Linux boxes get the
+[`localdns` CLI](desktop/README.md#headless--cli): same `rules.json` as the
+GUI, `localdns add '*.myapp.test' 172.30.0.3 && localdns serve`, done.
+
+---
+
+# The native macOS app
 
 Sandboxed, App-Store-safe, no helpers, no daemons, no root process ever running.
 
@@ -119,6 +187,10 @@ LocalDNS/
     QueryLog.swift         thread-safe ring buffer of recent queries
 LocalDNSTests/             67 XCTest cases covering the Core
 ```
+
+The Windows/Linux port in [`desktop/`](desktop/) is a 1:1 Rust translation of
+`Core/` — the XCTest suites above were ported byte-for-byte as its oracle, and
+`rules.json` is schema-identical across all three apps.
 
 ## Testing
 
