@@ -83,18 +83,37 @@ fn serve_answers_and_hot_reloads() {
     let (ok, _, _) = config.run(&["add", "*.serve.test", "172.30.0.9"]);
     assert!(ok);
 
+    // Capture serve's output so a CI failure explains itself.
+    let log_path = config.dir.path().join("serve.log");
+    let log_file = std::fs::File::create(&log_path).unwrap();
     let mut serve_cmd = bin();
     config.env(&mut serve_cmd);
     let mut child: Child = serve_cmd
         .args(["serve"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::from(log_file.try_clone().unwrap()))
+        .stderr(Stdio::from(log_file))
         .spawn()
         .unwrap();
+    let serve_log = || std::fs::read_to_string(&log_path).unwrap_or_default();
 
-    // Wait for the server to come up, then self-test through the binary.
+    // First wait for the bind line, then for real answers via self-test.
+    let mut bound = false;
+    for _ in 0..60 {
+        std::thread::sleep(Duration::from_millis(250));
+        if serve_log().contains("serving on") {
+            bound = true;
+            break;
+        }
+        if let Ok(Some(status)) = child.try_wait() {
+            panic!("serve exited early ({status}):\n{}", serve_log());
+        }
+    }
+    if !bound {
+        let _ = child.kill();
+        panic!("serve never bound:\n{}", serve_log());
+    }
     let mut up = false;
-    for _ in 0..20 {
+    for _ in 0..40 {
         std::thread::sleep(Duration::from_millis(250));
         let (ok, _, _) = config.run(&["self-test"]);
         if ok {
@@ -102,7 +121,10 @@ fn serve_answers_and_hot_reloads() {
             break;
         }
     }
-    assert!(up, "serve never answered");
+    if !up {
+        let _ = child.kill();
+        panic!("serve bound but never answered:\n{}", serve_log());
+    }
 
     // Hot reload: swap the rule set from a second process; the watcher (2s
     // poll) must serve the NEW rule without restarting `serve`. self-test

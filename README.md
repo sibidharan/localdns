@@ -157,40 +157,13 @@ system lookups to it until the zone files exist.
 
 ## Architecture
 
-```
-LocalDNS/
-  LocalDNSApp.swift        @main: Window + MenuBarExtra, state-symbol label
-  AppState.swift           @MainActor source of truth: rules, server, log,
-                           resolver status, settings (@AppStorage), launch flags
-  Views/
-    ContentView.swift      NavigationSplitView shell + section switch
-    ActionBar.swift        floating functional bar (orb, status, section actions)
-    RulesView.swift        grouped rule rows, group switches, add/edit/delete
-    RuleEditSheet.swift    add/edit sheet with validation
-    ImportHostsView.swift  /etc/hosts suggestions
-    SetupView.swift        grant flow, zones, self-test
-    DiagnosticsView.swift  live query log
-    SettingsView.swift     port, launch-at-login, unregister-on-quit
-    Theme.swift            palette + typography discipline
-    Glass.swift            all #available(macOS 26) gating + small components
-    DNSOrb.swift           the status orb (teal/amber/gray, breathing)
-  Core/                    pure Foundation + Network — no SwiftUI/AppKit;
-                           compiles standalone with swiftc (CLI-spike-ready)
-    DNSMessage.swift       DNS wire codec (parse queries, build responses)
-    DNSServer.swift        UDP+TCP listener, loopback-only via requiredLocalEndpoint
-    DNSClient.swift        tiny client used by the self-test
-    Rules.swift            DNSRule, matcher (longest wins), JSON store, resolver
-    ResolverSetup.swift    zone derivation, ownership scan, direct FileManager writes
-    ResolverAccess.swift   security-scoped bookmark for /etc/resolver + the
-                           one-time Terminal command text
-    HostsImporter.swift    /etc/hosts parser + wildcard suggestions
-    QueryLog.swift         thread-safe ring buffer of recent queries
-LocalDNSTests/             67 XCTest cases covering the Core
-```
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system — the shared
+engine (implemented in Swift and Rust with the Swift test suites as the
+port's oracle), the per-OS registration mechanisms and privilege models, the
+desktop app internals, and the CLI. Quick orientation:
 
-The Windows/Linux port in [`desktop/`](desktop/) is a 1:1 Rust translation of
-`Core/` — the XCTest suites above were ported byte-for-byte as its oracle, and
-`rules.json` is schema-identical across all three apps.
+- [`LocalDNS/`](LocalDNS/) — native macOS app (SwiftUI + pure-Foundation `Core/`)
+- [`desktop/`](desktop/) — Windows/Linux app (Rust + Tauri), helpers, and the `localdns` CLI
 
 ## Testing
 

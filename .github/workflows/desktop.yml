@@ -29,6 +29,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
             librsvg2-dev patchelf libssl-dev libgtk-3-dev
+      - name: Stage Windows helper sidecar (app build script needs it)
+        if: runner.os == 'Windows'
+        working-directory: desktop/app
+        run: node scripts/prepare-sidecars.mjs
       - name: Rust tests
         run: cargo test --workspace
       - name: Frontend check + tests + build
