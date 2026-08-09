@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The one signature moment: a small status orb — concentric soft rings plus a
@@ -5,10 +6,13 @@ import SwiftUI
 /// teal = serving & zones registered · amber = running but attention needed ·
 /// gray = stopped. Slow 4-second breathing pulse, Reduce-Motion aware.
 ///
-/// Energy discipline: the pulse is a perpetual SwiftUI animation, which drives
-/// display-list updates every frame (~25% CPU on a ProMotion display — measured).
-/// So it runs ONLY while the hosting window is key, and stops on disappear or
-/// focus loss; a static orb renders everywhere else.
+/// Energy discipline: the breathing runs as a Core Animation on the render
+/// server (via PulseContainer below) — NOT as a SwiftUI-state `repeatForever`
+/// animation, which drove whole-tree display-list updates every frame (~25%
+/// CPU on a ProMotion display, measured) and proved impossible to gate reliably
+/// on window key state from inside safeAreaBar content. CA animations cost
+/// ~0 main-thread CPU and the render server throttles them automatically for
+/// occluded/hidden windows, so no manual gating is needed at all.
 struct DNSOrb: View {
     enum State: Equatable {
         case live       // serving, everything registered
@@ -19,9 +23,7 @@ struct DNSOrb: View {
     let state: State
     var size: CGFloat = 28
 
-    @SwiftUI.State private var pulsing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.controlActiveState) private var controlActiveState
 
     init(state: State, size: CGFloat = 28) {
         self.state = state
@@ -36,61 +38,78 @@ struct DNSOrb: View {
         }
     }
 
-    /// Breathe only when animated, motion-safe, and the window is key.
-    private var animates: Bool {
-        state != .stopped && !reduceMotion && controlActiveState == .key
-    }
+    private var animates: Bool { state != .stopped && !reduceMotion }
 
     var body: some View {
-        ZStack {
-            Circle() // outer ring
-                .stroke(color.opacity(0.20), lineWidth: size * 0.045)
-            Circle() // middle ring
-                .stroke(color.opacity(0.38), lineWidth: size * 0.045)
-                .padding(size * 0.13)
-            Circle() // glowing core
-                .fill(RadialGradient(
-                    colors: [Color.white.opacity(state == .stopped ? 0.4 : 0.95), color],
-                    center: UnitPoint(x: 0.35, y: 0.3),
-                    startRadius: 0,
-                    endRadius: size * 0.40))
-                .padding(size * 0.25)
+        PulseContainer(animates: animates,
+                       glowColor: NSColor(color),
+                       glowRadius: size * 0.16) {
+            ZStack {
+                Circle() // outer ring
+                    .stroke(color.opacity(0.20), lineWidth: size * 0.045)
+                Circle() // middle ring
+                    .stroke(color.opacity(0.38), lineWidth: size * 0.045)
+                    .padding(size * 0.13)
+                Circle() // glowing core
+                    .fill(RadialGradient(
+                        colors: [Color.white.opacity(state == .stopped ? 0.4 : 0.95), color],
+                        center: UnitPoint(x: 0.35, y: 0.3),
+                        startRadius: 0,
+                        endRadius: size * 0.40))
+                    .padding(size * 0.25)
+            }
         }
         .frame(width: size, height: size)
-        .shadow(color: color.opacity(glowOpacity), radius: size * 0.16)
-        .scaleEffect(animates && pulsing ? 1.05 : 1.0)
         .opacity(state == .stopped ? 0.6 : 1)
         .animation(.easeInOut(duration: 0.5), value: state)
-        .onAppear { updateAnimation() }
-        .onDisappear { stopAnimation() }
-        .onChange(of: controlActiveState) { _, _ in updateAnimation() }
-        .onChange(of: state) { _, _ in updateAnimation() }
-        .onChange(of: reduceMotion) { _, _ in updateAnimation() }
+    }
+}
+
+/// Hosting view that lets clicks pass through to the enclosing SwiftUI Button.
+private final class PassthroughHostingView<Content: View>: NSHostingView<Content> {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+/// Hosts SwiftUI content in an NSView whose *layer* carries the pulse:
+/// a render-server scale + shadow-opacity animation (4 s, autoreversing,
+/// repeating). Hit-testing is disabled so enclosing Buttons receive clicks.
+private struct PulseContainer<Content: View>: NSViewRepresentable {
+    let animates: Bool
+    let glowColor: NSColor
+    let glowRadius: CGFloat
+    @ViewBuilder let content: () -> Content
+
+    func makeNSView(context: Context) -> NSHostingView<Content> {
+        let view = PassthroughHostingView(rootView: content())
+        view.wantsLayer = true
+        view.layer?.shadowOffset = .zero
+        return view
     }
 
-    private var glowOpacity: Double {
-        switch state {
-        case .stopped: return 0.08
-        default: return pulsing && animates ? 0.55 : 0.30
-        }
-    }
-
-    private func updateAnimation() {
+    func updateNSView(_ view: NSHostingView<Content>, context: Context) {
+        view.rootView = content()
+        guard let layer = view.layer else { return }
+        layer.shadowColor = glowColor.cgColor
+        layer.shadowRadius = glowRadius
         if animates {
-            guard !pulsing else { return }
-            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
-                pulsing = true
-            }
+            guard layer.animation(forKey: "localdns.pulse") == nil else { return }
+            let scale = CABasicAnimation(keyPath: "transform.scale")
+            scale.fromValue = 1.0
+            scale.toValue = 1.05
+            let glow = CABasicAnimation(keyPath: "shadowOpacity")
+            glow.fromValue = 0.30
+            glow.toValue = 0.55
+            let group = CAAnimationGroup()
+            group.animations = [scale, glow]
+            group.duration = 2 // 2 s each way = 4 s breath
+            group.autoreverses = true
+            group.repeatCount = .infinity
+            group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            layer.add(group, forKey: "localdns.pulse")
         } else {
-            stopAnimation()
+            layer.removeAnimation(forKey: "localdns.pulse")
+            layer.shadowOpacity = 0.30
+            layer.transform = CATransform3DIdentity
         }
-    }
-
-    /// Stopping the perpetual animation lets SwiftUI drop the display link.
-    private func stopAnimation() {
-        guard pulsing else { return }
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) { pulsing = false }
     }
 }

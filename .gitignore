@@ -13,3 +13,6 @@ xcuserdata/
 # SwiftPM
 .swiftpm/
 .build/
+
+# Unrelated local project (not part of LocalDNS)
+/desktop/
