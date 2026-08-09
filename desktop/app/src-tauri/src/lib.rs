@@ -28,9 +28,18 @@ pub(crate) fn show_window(app: &AppHandle) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        // WebKitGTK doesn't reliably flip document.hidden on window hide/show,
+        // so the animation pause attribute is driven from here (energy: a
+        // tray-hidden window must not keep painting the orb halo).
+        let _ = window.eval("document.documentElement.removeAttribute('data-hidden')");
         let entries = app.state::<AppState>().query_log.entries();
         let _ = app.emit("query-log", &entries);
     }
+}
+
+/// Marks the page hidden for the animation-pause CSS (see show_window).
+pub(crate) fn mark_hidden(window: &tauri::WebviewWindow) {
+    let _ = window.eval("document.documentElement.setAttribute('data-hidden','')");
 }
 
 /// Quit path: honor unregister-on-quit, stop the server cleanly, exit.
@@ -149,6 +158,9 @@ pub fn run() {
                 let app = window.app_handle();
                 if app.state::<AppState>().tray_available.load(Ordering::Acquire) {
                     // LSUIElement equivalent: close hides to the tray.
+                    if let Some(webview) = app.get_webview_window("main") {
+                        mark_hidden(&webview);
+                    }
                     let _ = window.hide();
                 } else {
                     // No tray (some Linux DEs): closing must really quit, or

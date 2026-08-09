@@ -127,6 +127,25 @@ fn build_menu(
 }
 
 fn refresh(app: &AppHandle, recent: &[QueryLogEntry]) {
+    // Energy: rebuilding a GTK/appindicator menu means D-Bus churn; skip when
+    // nothing the tray shows has actually changed (status line + top-5 ids).
+    static LAST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+    let status = server_control::current_status(app);
+    let mut key = status_line(&status);
+    key.push('|');
+    key.push_str(&status.enabled.to_string());
+    for entry in recent.iter().take(5) {
+        key.push('|');
+        key.push_str(&entry.id.to_string());
+    }
+    {
+        let mut last = LAST.lock().unwrap();
+        if *last == key {
+            return;
+        }
+        *last = key;
+    }
+
     // Tray menus are main-thread-only on GTK (and safest everywhere); this is
     // called from async tasks (debounced log publisher, server lifecycle), so
     // marshal — calling GTK from a worker freezes the whole main loop.
