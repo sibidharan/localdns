@@ -1,10 +1,22 @@
-# LocalDNS
+<p align="center">
+  <img src="docs/icon.png" alt="LocalDNS" width="128" height="128">
+</p>
 
-Wildcard DNS for local development on macOS. Point `*.myapp.test` at `172.30.0.3`
-and every hostname under it — `api.myapp.test`, `db.myapp.test`, anything — resolves,
-with zero per-host bookkeeping. LocalDNS runs a tiny DNS server on `127.0.0.1:15353`
-(loopback only) and registers your zones with the macOS system resolver, so every app
-(browsers included) just works.
+<h1 align="center">LocalDNS</h1>
+
+<p align="center"><b>Wildcard DNS for local development — macOS · Windows · Linux</b></p>
+
+Point `*.myapp.test` at `172.30.0.3` and every hostname under it —
+`api.myapp.test`, `db.myapp.test`, anything — resolves, with zero per-host
+bookkeeping. LocalDNS runs a tiny DNS server on loopback only and registers
+your zones with the operating system's resolver, so every app (browsers
+included) just works.
+
+**Downloads**: grab installers from [Releases](https://github.com/sibidharan/localdns/releases)
+— native macOS app, Windows installer (NSIS), and Linux `.deb` / `.rpm` /
+`.AppImage`. The Windows/Linux desktop apps live in [`desktop/`](desktop/)
+(Rust + Tauri) with full feature parity; the sections below describe the
+native macOS app.
 
 Sandboxed, App-Store-safe, no helpers, no daemons, no root process ever running.
 
