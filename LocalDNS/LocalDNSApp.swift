@@ -60,6 +60,7 @@ struct LocalDNSApp: App {
 private struct MenuBarContentView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -79,6 +80,21 @@ private struct MenuBarContentView: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
+            }
+
+            HStack(spacing: 10) {
+                Text("Menu bar icon")
+                    .font(.callout)
+                Spacer()
+                Toggle("Show menu bar icon", isOn: $showMenuBarIcon)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+            if !showMenuBarIcon {
+                Text("Hidden — LocalDNS keeps running in the background. Reopen it from Spotlight or Finder.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.attention)
             }
 
             if !appState.queryEntries.isEmpty {
