@@ -17,7 +17,7 @@ before: LocalDNS answers **only** the zones you configure.
 
 | Platform | How | Price |
 |---|---|---|
-| **macOS** | Native SwiftUI app — *coming to the Mac App Store* (build from source today, see below) | Paid — buying it funds development of all platforms |
+| **macOS** | Native SwiftUI app — *coming to the Mac App Store*; until then an [unsigned developer build](https://github.com/sibidharan/localdns/releases) is on Releases (right-click → Open) | Paid on the App Store — buying it funds development of all platforms |
 | **Windows** | [Installer from Releases](https://github.com/sibidharan/localdns/releases) (NSIS, includes the helper service) | Free |
 | **Linux** | [.deb / .rpm / .AppImage from Releases](https://github.com/sibidharan/localdns/releases) (includes the `localdns` CLI for headless boxes) | Free |
 

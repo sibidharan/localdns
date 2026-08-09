@@ -25,11 +25,19 @@ jobs:
             -configuration Release -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO build
           ditto -c -k --keepParent \
-            build/Build/Products/Release/LocalDNS.app LocalDNS-macos.zip
+            build/Build/Products/Release/LocalDNS.app LocalDNS-macos-unsigned-dev.zip
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: LocalDNS-macos.zip
+          files: LocalDNS-macos-unsigned-dev.zip
+          body: |
+            ## Downloads
+            - **Windows**: `LocalDNS_*-setup.exe` — installer, includes the helper service
+            - **Linux**: `.deb` / `.rpm` (app + agent + `localdns` CLI) or `.AppImage`
+            - **macOS**: `LocalDNS-macos-unsigned-dev.zip` — **unsigned developer build**:
+              macOS will warn on first open (right-click → Open). The signed, notarized,
+              auto-updating build is coming to the Mac App Store — buying it there funds
+              development of all platforms.
 
   desktop-linux:
     runs-on: ubuntu-latest
