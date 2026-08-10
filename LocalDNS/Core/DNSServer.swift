@@ -30,6 +30,11 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.localdns.dnsserver", qos: .userInitiated)
     private var udpListener: NWListener?
     private var tcpListener: NWListener?
+    /// True between start() and stop(): failures only retry while the server
+    /// is *supposed* to be up.
+    private var wantsRunning = false
+    private static let initialRetryDelay: TimeInterval = 2
+    private var retryDelay: TimeInterval = 2
     private var udpReady = false
     private var tcpReady = false
     private var currentError: String?
@@ -48,13 +53,32 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
     /// Starts both listeners. Synchronous errors (invalid port) are thrown;
     /// asynchronous failures (e.g. port already in use) surface via `lastError`.
     public func start() throws {
+        guard NWEndpoint.Port(rawValue: port) != nil else {
+            throw DNSServerError.invalidPort(port)
+        }
+        let (udp, tcp) = try Self.makeListeners(port: port)
+        queue.async {
+            self.wantsRunning = true
+            self.retryDelay = Self.initialRetryDelay
+            self.install(udp: udp, tcp: tcp)
+        }
+    }
+
+    public func stop() {
+        queue.async {
+            self.wantsRunning = false
+            self.teardown()
+        }
+    }
+
+    /// Loopback only: pinning requiredLocalEndpoint makes the listeners bind
+    /// 127.0.0.1 exclusively — nothing external can reach the server.
+    /// (requiredInterfaceType = .loopback does NOT constrain the bind address;
+    /// verified empirically — the listener still binds 0.0.0.0 without this.)
+    private static func makeListeners(port: UInt16) throws -> (NWListener, NWListener) {
         guard let endpointPort = NWEndpoint.Port(rawValue: port) else {
             throw DNSServerError.invalidPort(port)
         }
-        // Loopback only: pinning requiredLocalEndpoint makes the listeners bind
-        // 127.0.0.1 exclusively — nothing external can reach the server.
-        // (requiredInterfaceType = .loopback does NOT constrain the bind address;
-        // verified empirically — the listener still binds 0.0.0.0 without this.)
         let localEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: endpointPort)
         let udpParameters = NWParameters.udp
         udpParameters.requiredLocalEndpoint = localEndpoint
@@ -62,14 +86,7 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
         let tcpParameters = NWParameters.tcp
         tcpParameters.requiredLocalEndpoint = localEndpoint
         tcpParameters.allowLocalEndpointReuse = true
-
-        let udp = try NWListener(using: udpParameters)
-        let tcp = try NWListener(using: tcpParameters)
-        queue.async { self.install(udp: udp, tcp: tcp) }
-    }
-
-    public func stop() {
-        queue.async { self.teardown() }
+        return (try NWListener(using: udpParameters), try NWListener(using: tcpParameters))
     }
 
     // MARK: - Private; everything below runs on `queue`.
@@ -104,15 +121,38 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
         switch state {
         case .ready:
             if isUDP { udpReady = true } else { tcpReady = true }
+            if udpReady && tcpReady {
+                currentError = nil
+                retryDelay = Self.initialRetryDelay
+            }
             publish()
         case .failed(let error):
-            currentError = "\(isUDP ? "UDP" : "TCP") listener on port \(self.port) failed to start — the port may already be in use by another app. (\(error.localizedDescription))"
+            // Listeners die for transient reasons too (sleep/wake, network
+            // transitions, a port briefly held by another process) — a DNS
+            // server that stays silently dead until a manual toggle is worse
+            // than one that keeps retrying with backoff.
+            currentError = "\(isUDP ? "UDP" : "TCP") listener on port \(self.port) failed — the port may be in use by another app; retrying. (\(error.localizedDescription))"
             teardown()
+            scheduleRetry()
         case .cancelled:
             if isUDP { udpReady = false } else { tcpReady = false }
             publish()
         default:
             break
+        }
+    }
+
+    private func scheduleRetry() {
+        guard wantsRunning else { return }
+        let delay = retryDelay
+        retryDelay = min(retryDelay * 2, 30)
+        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, self.wantsRunning, self.udpListener == nil else { return }
+            guard let (udp, tcp) = try? Self.makeListeners(port: self.port) else {
+                self.scheduleRetry()
+                return
+            }
+            self.install(udp: udp, tcp: tcp)
         }
     }
 
