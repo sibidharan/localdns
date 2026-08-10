@@ -74,11 +74,33 @@ pub async fn apply_server_state<R: tauri::Runtime>(app: &AppHandle<R>) {
         };
         match localdns_server::start(config, make_handler(app.clone())).await {
             Ok(handle) => *guard = Some(handle),
-            Err(error) => *state.server_error.lock().unwrap() = Some(error.to_string()),
+            Err(error) => {
+                *state.server_error.lock().unwrap() = Some(error.to_string());
+                schedule_bind_retry(app);
+            }
         }
     }
     drop(guard);
     emit_server_status(app);
+}
+
+/// A busy port at launch (another stack at login, a container squatting 53)
+/// must not leave the server dead until a manual toggle: retry while it is
+/// enabled, failed, and not running. Each failed attempt re-arms one retry,
+/// so the chain runs at a 3 s cadence only while broken and ends on success
+/// or disable.
+fn schedule_bind_retry<R: tauri::Runtime>(app: &AppHandle<R>) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let state = app.state::<AppState>();
+        let enabled = state.settings.lock().unwrap().server_enabled;
+        let stopped = state.server.try_lock().map(|g| g.is_none()).unwrap_or(false);
+        let failed = state.server_error.lock().unwrap().is_some();
+        if enabled && stopped && failed {
+            apply_server_state(&app).await;
+        }
+    });
 }
 
 /// The rule-engine hook: resolve against the lock-free snapshot, log with

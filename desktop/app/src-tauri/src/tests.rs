@@ -297,3 +297,32 @@ fn state_derivations_and_traylike_paths() {
     commands::show_main_window(t.handle());
 }
 
+
+#[test]
+fn server_self_heals_after_port_frees() {
+    let t = TestApp::new();
+    let squatter = std::net::UdpSocket::bind("127.0.0.1:26451").expect("squat");
+
+    let mut settings = commands::get_settings(t.state());
+    settings.port = 26451;
+    settings.server_enabled = true;
+    tauri::async_runtime::block_on(commands::set_settings(t.handle(), settings)).unwrap();
+    let status = commands::get_status(t.handle());
+    assert!(!status.running);
+    assert!(status.error.is_some(), "bind failure must surface");
+
+    drop(squatter);
+    // One retry cycle (3 s) plus slack.
+    let mut healed = false;
+    for _ in 0..16 {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if commands::get_status(t.handle()).running {
+            healed = true;
+            break;
+        }
+    }
+    assert!(healed, "server must come back once the port frees");
+    let mut settings = commands::get_settings(t.state());
+    settings.server_enabled = false;
+    tauri::async_runtime::block_on(commands::set_settings(t.handle(), settings)).unwrap();
+}
