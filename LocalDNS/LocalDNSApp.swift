@@ -61,7 +61,14 @@ final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
         if let window = NSApp.windows.first(where: {
             $0.identifier?.rawValue.contains("main") == true || $0.title == "LocalDNS"
         }) {
+            // The window may live on another Space; an accessory app can't
+            // switch Spaces, so bring the window to the user instead. And
+            // order it front regardless — macOS's cooperative activation can
+            // deny focus to a background app, which must not leave the window
+            // buried.
+            window.collectionBehavior.insert(.moveToActiveSpace)
             window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
         } else {
             NotificationCenter.default.post(name: .localDNSOpenMainWindow, object: nil)
         }
@@ -123,6 +130,9 @@ final class MenuBarController: NSObject {
     private var currentSymbol: String?
     private var stateCancellable: AnyCancellable?
     private var defaultsObserver: NSObjectProtocol?
+    private var screenObserver: NSObjectProtocol?
+    private var lastIconWanted: Bool?
+    private static let positionKey = "NSStatusItem Preferred Position LocalDNSOrb"
 
     init(appState: AppState) {
         self.appState = appState
@@ -138,11 +148,23 @@ final class MenuBarController: NSObject {
         stateCancellable = appState.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.updateIcon() }
-        // The Settings toggle writes straight to UserDefaults.
+        // The Settings toggle writes straight to UserDefaults. React only to
+        // actual changes of our key: isVisible writes and autosave-position
+        // churn also fire this notification, and re-entering syncInsertion on
+        // our own writes would loop.
         defaultsObserver = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification, object: nil, queue: nil
         ) { [weak self] _ in
-            Task { @MainActor in self?.syncInsertion() }
+            Task { @MainActor in
+                guard let self, self.iconWanted != self.lastIconWanted else { return }
+                self.syncInsertion()
+            }
+        }
+        // Screen layout changes can free (or eat) menu bar space — re-evaluate.
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor in self?.ensureOnScreen() }
         }
 
         syncInsertion()
@@ -153,6 +175,7 @@ final class MenuBarController: NSObject {
     }
 
     private func syncInsertion() {
+        lastIconWanted = iconWanted
         if iconWanted {
             if statusItem == nil {
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -174,20 +197,39 @@ final class MenuBarController: NSObject {
         }
     }
 
-    /// A visible item can still be unrendered: a stale autosave position in a
-    /// full menu bar, or a manager parking it offscreen. Detect both (no
-    /// backing window, or a frame outside every screen) and re-enter at the
-    /// default rightmost slot by dropping the stored position.
+    /// A visible item can still be unrendered: a stale autosave position, a
+    /// manager parking it, or a menu bar that is simply out of space. Try to
+    /// re-enter at the default slot; if the bar still has no room, fall back
+    /// to a Dock icon — the app must never be unreachable.
     private func ensureOnScreen() {
         guard let item = statusItem, item.isVisible else { return }
-        let frame = item.button?.window?.frame
-        let onSomeScreen = frame.map { f in
-            NSScreen.screens.contains { $0.frame.intersects(f) }
-        } ?? false
-        if !onSomeScreen {
-            UserDefaults.standard.removeObject(forKey: "NSStatusItem Preferred Position LocalDNSOrb")
+        if itemRendered(item) {
+            adoptPolicy(.accessory)
+            return
+        }
+        if UserDefaults.standard.object(forKey: Self.positionKey) != nil {
+            UserDefaults.standard.removeObject(forKey: Self.positionKey)
             item.isVisible = false
             item.isVisible = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self, let item = self.statusItem, item.isVisible else { return }
+            self.adoptPolicy(self.itemRendered(item) ? .accessory : .regular)
+        }
+    }
+
+    /// "Rendered" = actually on glass. The button window's frame alone lies —
+    /// it can report a stale on-screen rect while the bar parks the item
+    /// offscreen — so require the occlusion signal too.
+    private func itemRendered(_ item: NSStatusItem) -> Bool {
+        guard let window = item.button?.window else { return false }
+        guard window.occlusionState.contains(.visible) else { return false }
+        return NSScreen.screens.contains { $0.frame.intersects(window.frame) }
+    }
+
+    private func adoptPolicy(_ policy: NSApplication.ActivationPolicy) {
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
         }
     }
 
