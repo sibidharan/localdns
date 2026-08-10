@@ -131,7 +131,9 @@ final class MenuBarController: NSObject {
     private var stateCancellable: AnyCancellable?
     private var defaultsObserver: NSObjectProtocol?
     private var screenObserver: NSObjectProtocol?
+    private var occlusionObserver: NSObjectProtocol?
     private var lastIconWanted: Bool?
+    private var verifyGeneration = 0
     private static let positionKey = "NSStatusItem Preferred Position LocalDNSOrb"
 
     init(appState: AppState) {
@@ -166,6 +168,19 @@ final class MenuBarController: NSObject {
         ) { [weak self] _ in
             Task { @MainActor in self?.ensureOnScreen() }
         }
+        // The button window's occlusion flips when a manager shows/hides the
+        // item — keep the Dock-icon fallback truthful without polling.
+        occlusionObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification, object: nil, queue: nil
+        ) { [weak self] note in
+            let noteWindow = (note.object as? NSWindow).map(ObjectIdentifier.init)
+            DispatchQueue.main.async {
+                guard let self, let noteWindow,
+                      let current = self.statusItem?.button?.window,
+                      ObjectIdentifier(current) == noteWindow else { return }
+                self.ensureOnScreen()
+            }
+        }
 
         syncInsertion()
     }
@@ -197,34 +212,71 @@ final class MenuBarController: NSObject {
         }
     }
 
+    /// Bundle ids of menu-bar managers. While one is running IT owns item
+    /// placement: a parked item is normal there, and any "repair" from our
+    /// side (position clearing, isVisible flips) makes the manager lose track
+    /// of the item — the icon then never lands even when whitelisted.
+    private static let managerBundleIDs = [
+        "com.surteesstudios.Bartender-setapp",
+        "com.surteesstudios.Bartender",
+        "com.jordanbaird.Ice",
+        "com.toggleable.Dozer",
+    ]
+
+    private var managerRunning: Bool {
+        Self.managerBundleIDs.contains {
+            !NSRunningApplication.runningApplications(withBundleIdentifier: $0).isEmpty
+        }
+    }
+
     /// A visible item can still be unrendered: a stale autosave position, a
-    /// manager parking it, or a menu bar that is simply out of space. Try to
-    /// re-enter at the default slot; if the bar still has no room, fall back
-    /// to a Dock icon — the app must never be unreachable.
+    /// manager parking it, or a menu bar that is simply out of space. Without
+    /// a manager, try to re-enter at the default slot. With one, never touch
+    /// the item — just keep the Dock icon up while it isn't on glass. Either
+    /// way the app stays reachable.
     private func ensureOnScreen() {
         guard let item = statusItem, item.isVisible else { return }
         if itemRendered(item) {
             adoptPolicy(.accessory)
             return
         }
-        if UserDefaults.standard.object(forKey: Self.positionKey) != nil {
+        if !managerRunning, UserDefaults.standard.object(forKey: Self.positionKey) != nil {
             UserDefaults.standard.removeObject(forKey: Self.positionKey)
             item.isVisible = false
             item.isVisible = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self, let item = self.statusItem, item.isVisible else { return }
-            self.adoptPolicy(self.itemRendered(item) ? .accessory : .regular)
+        verifyGeneration += 1
+        verifyLater(generation: verifyGeneration)
+    }
+
+    /// Settle the Dock-icon fallback after the bar stops moving: adopt the
+    /// policy matching reality, and while the item is still parked keep one
+    /// re-check armed (managers can take seconds to place an item — a check
+    /// that lands mid-takeover must not freeze a stale Dock icon in place).
+    private func verifyLater(generation: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self, generation == self.verifyGeneration,
+                  let item = self.statusItem, item.isVisible else { return }
+            if self.itemRendered(item) {
+                self.adoptPolicy(.accessory)
+            } else {
+                self.adoptPolicy(.regular)
+                self.verifyLater(generation: generation)
+            }
         }
     }
 
     /// "Rendered" = actually on glass. The button window's frame alone lies —
     /// it can report a stale on-screen rect while the bar parks the item
-    /// offscreen — so require the occlusion signal too.
+    /// offscreen — so require the occlusion signal too. EXCEPT under a
+    /// menu-bar manager: overlay-style managers keep the real window occluded
+    /// even while displaying the item, and their parking position (negative x
+    /// when hidden, a real slot when shown) is the honest signal there.
     private func itemRendered(_ item: NSStatusItem) -> Bool {
         guard let window = item.button?.window else { return false }
-        guard window.occlusionState.contains(.visible) else { return false }
-        return NSScreen.screens.contains { $0.frame.intersects(window.frame) }
+        let onScreen = NSScreen.screens.contains { $0.frame.intersects(window.frame) }
+        if managerRunning { return onScreen }
+        return onScreen && window.occlusionState.contains(.visible)
     }
 
     private func adoptPolicy(_ policy: NSApplication.ActivationPolicy) {
