@@ -14,26 +14,15 @@ extension Notification.Name {
 final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController?
 
+    /// Posted (distributed) by a duplicate instance right before it exits, so
+    /// the surviving primary brings its window forward.
+    static let showWindowNote = Notification.Name("com.localdns.app.show-main-window")
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Single-instance guard: a second copy (e.g. a downloaded build opened
-        // while another is running) would fight over the port, the rules file,
-        // and the status item. Hand off to the running instance and vanish —
-        // via exit(), NOT terminate(), so the duplicate can't run the
-        // unregister-on-quit cleanup out from under the primary.
-        // Liveness-checked: LaunchServices can briefly list a SIGKILLed
-        // instance as running, and deferring to that corpse would make every
-        // launch exit immediately — the app "refuses to start".
-        let current = NSRunningApplication.current
-        let primary = NSRunningApplication.runningApplications(
-            withBundleIdentifier: Bundle.main.bundleIdentifier ?? "com.localdns.app"
-        ).first { other in
-            other.processIdentifier != current.processIdentifier
-                && !other.isTerminated
-                && kill(other.processIdentifier, 0) == 0
-        }
-        if let primary {
-            primary.activate()
-            exit(0)
+        DistributedNotificationCenter.default().addObserver(
+            forName: Self.showWindowNote, object: nil, queue: .main
+        ) { _ in
+            DispatchQueue.main.async { LocalDNSAppDelegate.showMainWindow() }
         }
 
         // The menu-bar icon is a plain NSStatusItem, not a MenuBarExtra scene:
@@ -50,9 +39,33 @@ final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Tray-resident app: closing the window must never quit. Without this,
+    /// SwiftUI treats the sole Window scene closing as "app is done" (the old
+    /// MenuBarExtra scene used to keep it alive as a side effect) — and the
+    /// DNS server silently died with it.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        NotificationCenter.default.post(name: .localDNSOpenMainWindow, object: nil)
+        LocalDNSAppDelegate.showMainWindow()
         return false
+    }
+
+    /// Brings the main window back reliably. The SwiftUI Window scene's
+    /// NSWindow survives close (ordered out, not destroyed), and the pure
+    /// SwiftUI path (notification → openWindow) proved a no-op from that
+    /// state — so raise the window directly; the notification is the
+    /// fallback for the window-never-created case.
+    static func showMainWindow() {
+        if let window = NSApp.windows.first(where: {
+            $0.identifier?.rawValue.contains("main") == true || $0.title == "LocalDNS"
+        }) {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            NotificationCenter.default.post(name: .localDNSOpenMainWindow, object: nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -66,6 +79,27 @@ final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
 struct LocalDNSApp: App {
     @NSApplicationDelegateAdaptor(LocalDNSAppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
+
+    init() {
+        // Single-instance guard, in App.init so it runs before scene building
+        // and window restoration. Detection is a kernel flock, not
+        // NSRunningApplication: the LS-based query proved unreliable this
+        // early in launch, while a lock held by a live process and released
+        // by the kernel on ANY death (including SIGKILL) has no stale states
+        // by construction. The fd is held for the app's lifetime.
+        // exit(), never terminate(): a duplicate must not run the
+        // unregister-on-quit cleanup against the primary.
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("LocalDNS", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let fd = Darwin.open(dir.appendingPathComponent(".app.lock").path, O_CREAT | O_RDWR, 0o644)
+        if fd >= 0, flock(fd, LOCK_EX | LOCK_NB) != 0 {
+            // A live primary holds the lock: ask it to show its window, vanish.
+            DistributedNotificationCenter.default()
+                .post(name: LocalDNSAppDelegate.showWindowNote, object: nil)
+            exit(0)
+        }
+    }
 
     var body: some Scene {
         Window("LocalDNS", id: "main") {
@@ -219,10 +253,7 @@ private struct MenuBarContentView: View {
 
             HStack {
                 Button("Open LocalDNS") {
-                    // Same path as Spotlight-relaunch: ContentView observes
-                    // this and opens the window (works from AppKit hosting,
-                    // where the openWindow environment action isn't available).
-                    NotificationCenter.default.post(name: .localDNSOpenMainWindow, object: nil)
+                    LocalDNSAppDelegate.showMainWindow()
                 }
                 Spacer()
                 Button("Quit") {
