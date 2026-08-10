@@ -20,10 +20,18 @@ final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
         // and the status item. Hand off to the running instance and vanish —
         // via exit(), NOT terminate(), so the duplicate can't run the
         // unregister-on-quit cleanup out from under the primary.
-        let others = NSRunningApplication.runningApplications(
+        // Liveness-checked: LaunchServices can briefly list a SIGKILLed
+        // instance as running, and deferring to that corpse would make every
+        // launch exit immediately — the app "refuses to start".
+        let current = NSRunningApplication.current
+        let primary = NSRunningApplication.runningApplications(
             withBundleIdentifier: Bundle.main.bundleIdentifier ?? "com.localdns.app"
-        ).filter { $0.processIdentifier != NSRunningApplication.current.processIdentifier }
-        if let primary = others.first {
+        ).first { other in
+            other.processIdentifier != current.processIdentifier
+                && !other.isTerminated
+                && kill(other.processIdentifier, 0) == 0
+        }
+        if let primary {
             primary.activate()
             exit(0)
         }
