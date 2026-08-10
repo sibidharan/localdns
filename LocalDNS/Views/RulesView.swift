@@ -23,17 +23,12 @@ struct RulesView: View {
                 Form {
                     ForEach(groupedRules, id: \.group) { section in
                         Section {
-                            ForEach(Array(section.rules.enumerated()), id: \.element.id) { index, rule in
-                                // The separator is an overlay, not a sibling:
-                                // in a grouped Form a bare Divider becomes its
-                                // own full-height row — a big empty gap with a
-                                // hairline lost in it.
+                            // No manual separators: the grouped Form already
+                            // draws a hairline between rows — anything added
+                            // here doubles it (and a bare Divider even becomes
+                            // its own full-height row).
+                            ForEach(section.rules, id: \.id) { rule in
                                 ruleRow(rule)
-                                    .overlay(alignment: .top) {
-                                        if index > 0 {
-                                            Divider().padding(.leading, 38)
-                                        }
-                                    }
                             }
                         } header: {
                             HStack {
