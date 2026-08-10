@@ -153,21 +153,41 @@ final class MenuBarController: NSObject {
     }
 
     private func syncInsertion() {
-        if iconWanted, statusItem == nil {
-            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-            item.autosaveName = "LocalDNSOrb"
-            // Explicitly visible: overrides any stale hidden/parked flag a
-            // previous session (or a menu-bar manager mishap) left behind.
-            item.isVisible = true
-            item.button?.target = self
-            item.button?.action = #selector(togglePopover)
-            statusItem = item
-            currentSymbol = nil
+        if iconWanted {
+            if statusItem == nil {
+                let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+                item.autosaveName = "LocalDNSOrb"
+                item.button?.target = self
+                item.button?.action = #selector(togglePopover)
+                statusItem = item
+                currentSymbol = nil
+            }
+            // isVisible, not remove/recreate: recreation restores the autosave
+            // position, and on a crowded bar a stale slot can land where macOS
+            // simply doesn't render the item — "enabled but no icon".
+            statusItem?.isVisible = true
             updateIcon()
-        } else if !iconWanted, let item = statusItem {
+            DispatchQueue.main.async { [weak self] in self?.ensureOnScreen() }
+        } else if let item = statusItem {
             popover.performClose(nil)
-            NSStatusBar.system.removeStatusItem(item)
-            statusItem = nil
+            item.isVisible = false
+        }
+    }
+
+    /// A visible item can still be unrendered: a stale autosave position in a
+    /// full menu bar, or a manager parking it offscreen. Detect both (no
+    /// backing window, or a frame outside every screen) and re-enter at the
+    /// default rightmost slot by dropping the stored position.
+    private func ensureOnScreen() {
+        guard let item = statusItem, item.isVisible else { return }
+        let frame = item.button?.window?.frame
+        let onSomeScreen = frame.map { f in
+            NSScreen.screens.contains { $0.frame.intersects(f) }
+        } ?? false
+        if !onSomeScreen {
+            UserDefaults.standard.removeObject(forKey: "NSStatusItem Preferred Position LocalDNSOrb")
+            item.isVisible = false
+            item.isVisible = true
         }
     }
 
