@@ -9,7 +9,7 @@ struct ImportHostsView: View {
     var body: some View {
         Form {
             Section {
-                Text("LocalDNS never modifies /etc/hosts — Helm can keep managing it.")
+                Text("LocalDNS never modifies /etc/hosts — it is only read for suggestions.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
