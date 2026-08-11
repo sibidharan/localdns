@@ -86,4 +86,34 @@ final class DNSClientTests: XCTestCase {
         XCTAssertEqual(miss.rcode, 3)
         XCTAssertEqual(miss.answers, [])
     }
+
+    /// Regression: rapid stop/start on the same port must converge to a
+    /// server that actually ANSWERS. With endpoint reuse, a rebind could win
+    /// the bind while a draining socket still owned datagram delivery —
+    /// port bound, zero answers. Exclusive binds + the retry loop must
+    /// produce a live socket within a few seconds, every cycle.
+    func testRestartCyclesKeepAnswering() async throws {
+        let port: UInt16 = 53163
+        let rules = [DNSRule(pattern: "*.cycle.test", ipv4: "172.30.0.31")]
+        let server = DNSServer(port: port) { query in
+            DNSResolver.responseData(for: query, rules: rules)
+        }
+        defer { server.stop() }
+
+        for cycle in 0 ..< 3 {
+            try server.start()
+            var answered = false
+            for _ in 0 ..< 100 {
+                try await Task.sleep(for: .milliseconds(100))
+                if let hit = try? await DNSClient.lookup(
+                    name: "a.cycle.test", qtype: DNSMessage.typeA, port: port),
+                    hit.answers == ["172.30.0.31"] {
+                    answered = true
+                    break
+                }
+            }
+            XCTAssertTrue(answered, "cycle \(cycle): server bound but not answering")
+            server.stop()
+        }
+    }
 }

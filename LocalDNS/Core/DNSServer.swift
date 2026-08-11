@@ -80,12 +80,16 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
             throw DNSServerError.invalidPort(port)
         }
         let localEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: endpointPort)
+        // Exclusive binds, deliberately: with endpoint reuse a retry could
+        // "successfully" rebind while a half-torn-down socket still owned
+        // datagram delivery — port bound, zero answers. Exclusive binding
+        // makes that state impossible: the rebind fails loudly until the old
+        // socket is truly gone, and the backoff loop converges on a single
+        // live socket.
         let udpParameters = NWParameters.udp
         udpParameters.requiredLocalEndpoint = localEndpoint
-        udpParameters.allowLocalEndpointReuse = true
         let tcpParameters = NWParameters.tcp
         tcpParameters.requiredLocalEndpoint = localEndpoint
-        tcpParameters.allowLocalEndpointReuse = true
         return (try NWListener(using: udpParameters), try NWListener(using: tcpParameters))
     }
 
