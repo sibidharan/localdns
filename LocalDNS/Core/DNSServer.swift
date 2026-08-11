@@ -1,6 +1,7 @@
 import Combine
+import Darwin
 import Foundation
-import Network
+import os
 
 public enum DNSServerError: Error, Equatable {
     case invalidPort(UInt16)
@@ -12,8 +13,16 @@ public enum DNSServerError: Error, Equatable {
 /// TCP: DNS-over-TCP framing (RFC 1035 §4.2.2) — each message is preceded by a
 /// two-byte big-endian length; the connection stays open for further queries.
 ///
-/// All Network-framework callbacks run on a private serial queue; the published
-/// state (`isRunning`, `lastError`) is mirrored to the main queue for SwiftUI.
+/// Transport is BSD sockets + DispatchSource, deliberately NOT
+/// Network.framework: NW listeners on recent macOS can silently stop
+/// delivering after sleep while still reporting `.ready` (bound port, peer
+/// pseudo-connections created, zero callbacks — observed in the field three
+/// days running). Kernel sockets have no such lifecycle: a bound loopback
+/// socket keeps receiving after wake, and if anything ever goes silent anyway,
+/// the watchdog (a real self-query) tears down and rebinds.
+///
+/// Everything below runs on a private serial queue; the published state
+/// (`isRunning`, `lastError`) is mirrored to the main queue for SwiftUI.
 public final class DNSServer: ObservableObject, @unchecked Sendable {
     /// Parses a query and returns the complete wire response packet.
     public typealias Handler = (DNSQuery) -> Data
@@ -27,18 +36,29 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
     @Published public private(set) var isRunning = false
     @Published public private(set) var lastError: String?
 
+    private static let log = Logger(subsystem: "com.localdns.app", category: "server")
+
     private let queue = DispatchQueue(label: "com.localdns.dnsserver", qos: .userInitiated)
-    private var udpListener: NWListener?
-    private var tcpListener: NWListener?
+    private var udpSource: DispatchSourceRead?
+    private var tcpSource: DispatchSourceRead?
+    private var udpFD: Int32 = -1
+    private var tcpFD: Int32 = -1
+
+    private final class TCPClient {
+        let source: DispatchSourceRead
+        var buffer = Data()
+        init(source: DispatchSourceRead) { self.source = source }
+    }
+
+    private var clients: [Int32: TCPClient] = [:]
+
     /// True between start() and stop(): failures only retry while the server
     /// is *supposed* to be up.
     private var wantsRunning = false
     private static let initialRetryDelay: TimeInterval = 2
     private var retryDelay: TimeInterval = 2
-    private var udpReady = false
-    private var tcpReady = false
     private var currentError: String?
-    private var connections: [NWConnection] = []
+    private var watchdog: DispatchSourceTimer?
 
     public init(port: UInt16 = 15353, handler: @escaping Handler = { DNSResponseBuilder.refused(to: $0) }) {
         self.port = port
@@ -46,104 +66,113 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
     }
 
     deinit {
-        udpListener?.cancel()
-        tcpListener?.cancel()
+        udpSource?.cancel()
+        tcpSource?.cancel()
+        for client in clients.values { client.source.cancel() }
+        watchdog?.cancel()
     }
 
-    /// Starts both listeners. Synchronous errors (invalid port) are thrown;
-    /// asynchronous failures (e.g. port already in use) surface via `lastError`.
+    /// Starts both sockets. Synchronous errors (invalid port) are thrown;
+    /// asynchronous failures (e.g. port already in use) surface via `lastError`
+    /// and keep retrying with backoff until stop().
     public func start() throws {
-        guard NWEndpoint.Port(rawValue: port) != nil else {
-            throw DNSServerError.invalidPort(port)
-        }
-        let (udp, tcp) = try Self.makeListeners(port: port)
+        guard port != 0 else { throw DNSServerError.invalidPort(port) }
         queue.async {
             self.wantsRunning = true
             self.retryDelay = Self.initialRetryDelay
-            self.install(udp: udp, tcp: tcp)
+            self.attemptBind()
+            self.armWatchdog()
         }
     }
 
     public func stop() {
         queue.async {
             self.wantsRunning = false
+            self.watchdog?.cancel()
+            self.watchdog = nil
             self.teardown()
         }
     }
 
-    /// Loopback only: pinning requiredLocalEndpoint makes the listeners bind
-    /// 127.0.0.1 exclusively — nothing external can reach the server.
-    /// (requiredInterfaceType = .loopback does NOT constrain the bind address;
-    /// verified empirically — the listener still binds 0.0.0.0 without this.)
-    private static func makeListeners(port: UInt16) throws -> (NWListener, NWListener) {
-        guard let endpointPort = NWEndpoint.Port(rawValue: port) else {
-            throw DNSServerError.invalidPort(port)
-        }
-        let localEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: endpointPort)
-        // Exclusive binds, deliberately: with endpoint reuse a retry could
-        // "successfully" rebind while a half-torn-down socket still owned
-        // datagram delivery — port bound, zero answers. Exclusive binding
-        // makes that state impossible: the rebind fails loudly until the old
-        // socket is truly gone, and the backoff loop converges on a single
-        // live socket.
-        let udpParameters = NWParameters.udp
-        udpParameters.requiredLocalEndpoint = localEndpoint
-        let tcpParameters = NWParameters.tcp
-        tcpParameters.requiredLocalEndpoint = localEndpoint
-        return (try NWListener(using: udpParameters), try NWListener(using: tcpParameters))
+    /// Schedules an immediate liveness probe (e.g. after system wake).
+    public func probeNow() {
+        queue.async { self.selfProbe() }
     }
 
-    // MARK: - Private; everything below runs on `queue`.
+    // MARK: - Binding (on `queue`)
 
-    private func install(udp: NWListener, tcp: NWListener) {
-        teardown()
+    private func attemptBind() {
+        guard wantsRunning, udpFD < 0, tcpFD < 0 else { return }
+        guard let udp = Self.makeBoundSocket(type: SOCK_DGRAM, port: port) else {
+            bindFailed("UDP bind on 127.0.0.1:\(port) failed (\(Self.errnoText())) — the port may be in use by another app; retrying")
+            return
+        }
+        guard let tcp = Self.makeBoundSocket(type: SOCK_STREAM, port: port) else {
+            close(udp)
+            bindFailed("TCP bind on 127.0.0.1:\(port) failed (\(Self.errnoText())) — the port may be in use by another app; retrying")
+            return
+        }
+        guard listen(tcp, 16) == 0 else {
+            close(udp)
+            close(tcp)
+            bindFailed("TCP listen failed (\(Self.errnoText())); retrying")
+            return
+        }
+
+        udpFD = udp
+        tcpFD = tcp
+
+        let udpSrc = DispatchSource.makeReadSource(fileDescriptor: udp, queue: queue)
+        udpSrc.setEventHandler { [weak self] in self?.drainUDP() }
+        udpSrc.setCancelHandler { close(udp) }
+        udpSrc.resume()
+        udpSource = udpSrc
+
+        let tcpSrc = DispatchSource.makeReadSource(fileDescriptor: tcp, queue: queue)
+        tcpSrc.setEventHandler { [weak self] in self?.acceptClients() }
+        tcpSrc.setCancelHandler { close(tcp) }
+        tcpSrc.resume()
+        tcpSource = tcpSrc
+
         currentError = nil
-        udpListener = udp
-        tcpListener = tcp
-        udp.stateUpdateHandler = { [weak self] state in self?.listenerState(state, isUDP: true) }
-        tcp.stateUpdateHandler = { [weak self] state in self?.listenerState(state, isUDP: false) }
-        udp.newConnectionHandler = { [weak self] connection in self?.handleUDP(connection) }
-        tcp.newConnectionHandler = { [weak self] connection in self?.handleTCP(connection) }
-        udp.start(queue: queue)
-        tcp.start(queue: queue)
+        retryDelay = Self.initialRetryDelay
         publish()
+        Self.log.info("bound 127.0.0.1:\(self.port, privacy: .public) (udp+tcp)")
     }
 
-    private func teardown() {
-        udpListener?.cancel()
-        udpListener = nil
-        tcpListener?.cancel()
-        tcpListener = nil
-        for connection in connections { connection.cancel() }
-        connections.removeAll()
-        udpReady = false
-        tcpReady = false
-        publish()
-    }
+    /// Exclusive bind, deliberately: with address reuse a rebind could win the
+    /// port while a dying socket still owned datagram delivery — bound but
+    /// silent. Exclusive binding fails loudly until the old socket is gone.
+    private static func makeBoundSocket(type: Int32, port: UInt16) -> Int32? {
+        let fd = socket(AF_INET, type, 0)
+        guard fd >= 0 else { return nil }
+        var yes: Int32 = 1
+        _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, socklen_t(MemoryLayout<Int32>.size))
 
-    private func listenerState(_ state: NWListener.State, isUDP: Bool) {
-        switch state {
-        case .ready:
-            if isUDP { udpReady = true } else { tcpReady = true }
-            if udpReady && tcpReady {
-                currentError = nil
-                retryDelay = Self.initialRetryDelay
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let bound = withUnsafePointer(to: &addr) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
-            publish()
-        case .failed(let error):
-            // Listeners die for transient reasons too (sleep/wake, network
-            // transitions, a port briefly held by another process) — a DNS
-            // server that stays silently dead until a manual toggle is worse
-            // than one that keeps retrying with backoff.
-            currentError = "\(isUDP ? "UDP" : "TCP") listener on port \(self.port) failed — the port may be in use by another app; retrying. (\(error.localizedDescription))"
-            teardown()
-            scheduleRetry()
-        case .cancelled:
-            if isUDP { udpReady = false } else { tcpReady = false }
-            publish()
-        default:
-            break
         }
+        guard bound == 0 else {
+            close(fd)
+            return nil
+        }
+        let flags = fcntl(fd, F_GETFL)
+        _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+        return fd
+    }
+
+    private func bindFailed(_ message: String) {
+        currentError = message
+        publish()
+        Self.log.error("\(message, privacy: .public)")
+        scheduleRetry()
     }
 
     private func scheduleRetry() {
@@ -151,17 +180,24 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
         let delay = retryDelay
         retryDelay = min(retryDelay * 2, 30)
         queue.asyncAfter(deadline: .now() + delay) { [weak self] in
-            guard let self, self.wantsRunning, self.udpListener == nil else { return }
-            guard let (udp, tcp) = try? Self.makeListeners(port: self.port) else {
-                self.scheduleRetry()
-                return
-            }
-            self.install(udp: udp, tcp: tcp)
+            self?.attemptBind()
         }
     }
 
+    private func teardown() {
+        udpSource?.cancel()
+        udpSource = nil
+        tcpSource?.cancel()
+        tcpSource = nil
+        udpFD = -1
+        tcpFD = -1
+        for client in clients.values { client.source.cancel() }
+        clients.removeAll()
+        publish()
+    }
+
     private func publish() {
-        let running = udpReady && tcpReady
+        let running = udpFD >= 0 && tcpFD >= 0
         let error = currentError
         DispatchQueue.main.async {
             if self.isRunning != running { self.isRunning = running }
@@ -169,93 +205,181 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
         }
     }
 
-    // MARK: Connections
+    // MARK: - UDP (on `queue`)
 
-    /// UDP is connectionless; Network framework hands us a pseudo-connection per
-    /// peer. We keep receiving datagrams until the peer goes away or errors.
-    private func handleUDP(_ connection: NWConnection) {
-        track(connection)
-        connection.start(queue: queue)
-        receiveUDP(connection)
-    }
-
-    private func receiveUDP(_ connection: NWConnection) {
-        connection.receiveMessage { [weak self, weak connection] content, _, _, error in
-            guard let self, let connection else { return }
-            if let content, !content.isEmpty, let reply = self.process(content) {
-                connection.send(content: reply, completion: .contentProcessed { _ in })
+    private func drainUDP() {
+        guard udpFD >= 0 else { return }
+        var buf = [UInt8](repeating: 0, count: 4096)
+        while true {
+            var peer = sockaddr_in()
+            var peerLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+            let received = withUnsafeMutablePointer(to: &peer) { pointer in
+                pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                    recvfrom(udpFD, &buf, buf.count, 0, sa, &peerLen)
+                }
             }
-            if error != nil {
-                self.untrack(connection)
-            } else {
-                self.receiveUDP(connection)
+            guard received > 0 else { break } // EWOULDBLOCK or transient error: wait for the next event
+            guard let reply = process(Data(bytes: buf, count: received)) else { continue }
+            _ = withUnsafePointer(to: &peer) { pointer in
+                pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                    reply.withUnsafeBytes { raw in
+                        sendto(udpFD, raw.baseAddress, reply.count, 0, sa, peerLen)
+                    }
+                }
             }
         }
     }
 
-    private func handleTCP(_ connection: NWConnection) {
-        track(connection)
-        connection.start(queue: queue)
-        receiveTCPLength(connection)
+    // MARK: - TCP (on `queue`)
+
+    private func acceptClients() {
+        guard tcpFD >= 0 else { return }
+        while true {
+            let fd = accept(tcpFD, nil, nil)
+            guard fd >= 0 else { break } // EWOULDBLOCK: no more pending
+            var yes: Int32 = 1
+            _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, socklen_t(MemoryLayout<Int32>.size))
+            let flags = fcntl(fd, F_GETFL)
+            _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+
+            let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
+            source.setEventHandler { [weak self] in self?.clientReadable(fd) }
+            source.setCancelHandler { close(fd) }
+            source.resume()
+            clients[fd] = TCPClient(source: source)
+        }
     }
 
-    /// Reads the two-byte big-endian length prefix of the next DNS-over-TCP message.
-    private func receiveTCPLength(_ connection: NWConnection) {
-        connection.receive(minimumIncompleteLength: 2, maximumLength: 2) { [weak self, weak connection] content, _, _, error in
-            guard let self, let connection else { return }
-            let bytes = content.map { [UInt8]($0) } ?? []
-            guard error == nil, bytes.count == 2 else {
-                self.untrack(connection)
+    private func clientReadable(_ fd: Int32) {
+        guard let client = clients[fd] else { return }
+        var buf = [UInt8](repeating: 0, count: 4096)
+        while true {
+            let n = read(fd, &buf, buf.count)
+            if n > 0 {
+                client.buffer.append(contentsOf: buf[0 ..< n])
+                continue
+            }
+            if n == 0 {
+                dropClient(fd) // EOF
                 return
             }
-            let length = Int(bytes[0]) << 8 | Int(bytes[1])
+            if errno == EWOULDBLOCK || errno == EAGAIN { break }
+            dropClient(fd)
+            return
+        }
+
+        // RFC 1035 §4.2.2 framing with pipelining: drain every complete
+        // message in the buffer; a partial one waits for more bytes.
+        while client.buffer.count >= 2 {
+            let head = [UInt8](client.buffer.prefix(2))
+            let length = Int(head[0]) << 8 | Int(head[1])
             guard length > 0 else {
-                self.untrack(connection)
+                dropClient(fd)
                 return
             }
-            self.receiveTCPQuery(connection, length: length)
-        }
-    }
-
-    /// Reads exactly `length` bytes (the query), then writes the framed response.
-    private func receiveTCPQuery(_ connection: NWConnection, length: Int) {
-        connection.receive(minimumIncompleteLength: length, maximumLength: length) { [weak self, weak connection] content, _, _, error in
-            guard let self, let connection else { return }
-            guard error == nil, let content, content.count == length else {
-                self.untrack(connection)
+            guard client.buffer.count >= 2 + length else { break }
+            let query = Data(client.buffer.dropFirst(2).prefix(length))
+            client.buffer = Data(client.buffer.dropFirst(2 + length))
+            guard let reply = process(query), reply.count <= Int(UInt16.max) else { continue }
+            var framed = Data([UInt8(reply.count >> 8), UInt8(reply.count & 0xFF)])
+            framed.append(reply)
+            guard writeAll(fd, framed) else {
+                dropClient(fd)
                 return
             }
-            if let reply = self.process(content), reply.count <= Int(UInt16.max) {
-                var framed = Data()
-                framed.append(UInt8(reply.count >> 8))
-                framed.append(UInt8(reply.count & 0xFF))
-                framed.append(contentsOf: reply)
-                connection.send(content: framed, completion: .contentProcessed { [weak self, weak connection] _ in
-                    guard let self, let connection else { return }
-                    self.receiveTCPLength(connection)
-                })
-            } else {
-                self.receiveTCPLength(connection)
+        }
+    }
+
+    /// Loopback writes rarely block; when they do, wait briefly for POLLOUT.
+    private func writeAll(_ fd: Int32, _ data: Data) -> Bool {
+        var sent = 0
+        while sent < data.count {
+            let n = data.withUnsafeBytes { raw in
+                write(fd, raw.baseAddress!.advanced(by: sent), data.count - sent)
+            }
+            if n > 0 {
+                sent += n
+                continue
+            }
+            guard errno == EWOULDBLOCK || errno == EAGAIN else { return false }
+            var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+            guard poll(&pfd, 1, 1000) > 0 else { return false }
+        }
+        return true
+    }
+
+    private func dropClient(_ fd: Int32) {
+        clients.removeValue(forKey: fd)?.source.cancel()
+    }
+
+    // MARK: - Watchdog (on `queue`)
+
+    /// Trust only real answers: every minute (and on demand after wake) fire
+    /// an actual query at the socket from outside the server queue. Silence
+    /// while we believe we're bound means the transport is lying — tear down
+    /// and rebind. This is the net for failure modes nobody has met yet.
+    private func armWatchdog() {
+        watchdog?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 60, repeating: 60, leeway: .seconds(10))
+        timer.setEventHandler { [weak self] in self?.selfProbe() }
+        timer.resume()
+        watchdog = timer
+    }
+
+    private func selfProbe() {
+        guard wantsRunning, udpFD >= 0 else { return }
+        let port = self.port
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let alive = Self.probeOnce(port: port)
+            guard let self else { return }
+            self.queue.async {
+                guard self.wantsRunning, self.udpFD >= 0 else { return }
+                if alive {
+                    return
+                }
+                Self.log.fault("liveness probe got no answer on 127.0.0.1:\(port, privacy: .public) — rebinding")
+                self.currentError = "Server went silent — rebinding."
+                self.teardown()
+                self.retryDelay = Self.initialRetryDelay
+                self.attemptBind()
             }
         }
     }
 
-    private func track(_ connection: NWConnection) {
-        connections.append(connection)
-        connection.stateUpdateHandler = { [weak self, weak connection] state in
-            guard let self, let connection else { return }
-            switch state {
-            case .failed, .cancelled:
-                self.untrack(connection)
-            default:
-                break
+    /// One UDP query from a throwaway socket; ANY reply (even NXDOMAIN or
+    /// REFUSED) proves the pipeline is alive.
+    private static func probeOnce(port: UInt16) -> Bool {
+        guard let query = DNSClient.encodeQuery(
+            id: UInt16.random(in: 1 ... .max),
+            name: "probe.localdns.invalid",
+            qtype: DNSMessage.typeA
+        ) else { return false }
+        let fd = socket(AF_INET, SOCK_DGRAM, 0)
+        guard fd >= 0 else { return false }
+        defer { close(fd) }
+        var timeout = timeval(tv_sec: 2, tv_usec: 0)
+        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let sent = withUnsafePointer(to: &addr) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                query.withUnsafeBytes { raw in
+                    sendto(fd, raw.baseAddress, query.count, 0, sa, socklen_t(MemoryLayout<sockaddr_in>.size))
+                }
             }
         }
+        guard sent == query.count else { return false }
+        var buf = [UInt8](repeating: 0, count: 512)
+        return recv(fd, &buf, buf.count, 0) > 0
     }
 
-    private func untrack(_ connection: NWConnection) {
-        connections.removeAll { $0 === connection }
-        connection.cancel()
+    private static func errnoText() -> String {
+        String(cString: strerror(errno))
     }
 
     /// Parses the datagram; malformed packets are dropped (no id to answer with).

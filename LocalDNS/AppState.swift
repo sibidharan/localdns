@@ -135,6 +135,17 @@ final class AppState: ObservableObject {
         server = DNSServer(port: UInt16(clamping: initialPort))
         installServerHandler()
         observeServer()
+        // After wake, verify the server actually answers — transport layers
+        // have lied before (bound sockets, zero delivery). The probe rebinds
+        // on silence; a second pass catches slow wakes.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.server.probeNow()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                self?.server.probeNow()
+            }
+        }
         AppState.shared = self
         // Pick up a previously granted /etc/resolver access bookmark, if any.
         if let url = ResolverAccess.resolveBookmark() {
