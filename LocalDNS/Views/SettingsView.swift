@@ -54,6 +54,23 @@ struct SettingsView: View {
                     Text("When enabled, quitting LocalDNS removes the zone files it created (uses the granted folder access).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Toggle("Check for updates automatically", isOn: Binding(
+                        get: { appState.checkUpdates },
+                        set: { appState.checkUpdates = $0 }))
+                    if let newer = appState.availableUpdate {
+                        HStack {
+                            Label("LocalDNS \(newer) is available.", systemImage: "arrow.down.circle")
+                                .font(.callout)
+                            Spacer()
+                            Button("View release") {
+                                NSWorkspace.shared.open(UpdateChecker.releasesPage)
+                            }
+                        }
+                    } else {
+                        Text("Checks once a day against github.com/sibidharan/localdns — nothing else ever leaves this machine.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .formStyle(.grouped)

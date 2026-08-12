@@ -35,6 +35,10 @@ final class AppState: ObservableObject {
 
     @Published var launchAtLoginError: String?
 
+    /// Newer released version ("0.2.2"), when the daily check found one.
+    /// Direct-download builds only — compiled out for the App Store.
+    @Published private(set) var availableUpdate: String?
+
     /// Set by the `-newRuleSheet*` launch arguments; RulesView presents the
     /// New Rule sheet for it (debug/E2E driver).
     @Published var debugNewRuleSheet: DebugNewRuleSeed?
@@ -109,6 +113,7 @@ final class AppState: ObservableObject {
         didSet { if serverEnabled != oldValue { applyServerEnabledChange() } }
     }
     @AppStorage("unregisterOnQuit") var unregisterOnQuit: Bool = false
+    @AppStorage("checkUpdates") var checkUpdates: Bool = true
     @AppStorage("launchAtLogin") var launchAtLogin: Bool = false {
         didSet { if launchAtLogin != oldValue { applyLaunchAtLoginChange() } }
     }
@@ -147,6 +152,16 @@ final class AppState: ObservableObject {
             }
         }
         AppState.shared = self
+        #if !APPSTORE
+        // Daily update check (plus one shortly after launch). One GET to
+        // GitHub when enabled — the only network call that leaves loopback.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.runUpdateCheck()
+        }
+        Timer.scheduledTimer(withTimeInterval: 24 * 3600, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.runUpdateCheck() }
+        }
+        #endif
         // Pick up a previously granted /etc/resolver access bookmark, if any.
         if let url = ResolverAccess.resolveBookmark() {
             resolverAccessGranted = true
@@ -483,6 +498,20 @@ final class AppState: ObservableObject {
     /// The unregister-on-quit cleanup, shared by quit() and the app delegate's
     /// applicationShouldTerminate (a direct, instant write when folder access
     /// is granted).
+    private let updateChecker = UpdateChecker()
+
+    func runUpdateCheck() {
+        #if !APPSTORE
+        guard checkUpdates else { return }
+        let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+        updateChecker.check(currentVersion: current) { [weak self] newer in
+            DispatchQueue.main.async {
+                if let newer { self?.availableUpdate = newer }
+            }
+        }
+        #endif
+    }
+
     func performQuitCleanup() {
         if unregisterOnQuit, resolverAccessGranted {
             _ = ResolverSetup.uninstallAll()

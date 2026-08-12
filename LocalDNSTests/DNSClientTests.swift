@@ -117,3 +117,25 @@ final class DNSClientTests: XCTestCase {
         }
     }
 }
+
+
+/// Lives here because the test target compiles Core sources directly and
+/// UpdateChecker ships in Core/DNSClient.swift.
+final class UpdateCheckerTests: XCTestCase {
+    func testVersionComparison() {
+        XCTAssertTrue(UpdateChecker.isNewer("v0.2.2", than: "0.2.1"))
+        XCTAssertTrue(UpdateChecker.isNewer("0.10.0", than: "0.9.9"))
+        XCTAssertTrue(UpdateChecker.isNewer("1.0.0", than: "0.99.99"))
+        XCTAssertFalse(UpdateChecker.isNewer("0.2.1", than: "0.2.1"))
+        XCTAssertFalse(UpdateChecker.isNewer("v0.2.0", than: "0.2.1"))
+        XCTAssertFalse(UpdateChecker.isNewer("1.0", than: "1.0.0"))
+        XCTAssertTrue(UpdateChecker.isNewer("1.0.1", than: "1.0"))
+    }
+
+    func testTagParsingAndNormalization() {
+        let json = Data(#"{"tag_name": "v0.9.9", "name": "ignored"}"#.utf8)
+        XCTAssertEqual(UpdateChecker.tagName(in: json), "v0.9.9")
+        XCTAssertEqual(UpdateChecker.normalized("v0.9.9"), "0.9.9")
+        XCTAssertNil(UpdateChecker.tagName(in: Data("not json".utf8)))
+    }
+}

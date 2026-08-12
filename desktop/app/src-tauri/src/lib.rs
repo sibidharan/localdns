@@ -94,6 +94,9 @@ pub fn run() {
             Some(vec!["--hidden"]),
         ))
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             app.manage(AppState::load());
 
@@ -205,6 +208,7 @@ pub fn run() {
             commands::resolver_sync,
             commands::resolver_unregister_all,
             commands::show_main_window,
+            commands::update_channel,
             commands::quit_app,
         ])
         .run(tauri::generate_context!())

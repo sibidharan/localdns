@@ -326,3 +326,22 @@ fn server_self_heals_after_port_frees() {
     settings.server_enabled = false;
     tauri::async_runtime::block_on(commands::set_settings(t.handle(), settings)).unwrap();
 }
+
+#[test]
+fn update_channel_matches_platform() {
+    let channel = commands::update_channel();
+    if cfg!(windows) {
+        assert_eq!(channel, "nsis");
+    } else if cfg!(target_os = "linux") {
+        // Test binaries run from target/, never /usr — dev unless APPIMAGE set.
+        assert!(channel == "dev" || channel == "appimage");
+    } else {
+        assert_eq!(channel, "dev");
+    }
+}
+
+#[test]
+fn settings_default_enables_update_checks() {
+    let t = TestApp::new();
+    assert!(commands::get_settings(t.state()).check_updates);
+}

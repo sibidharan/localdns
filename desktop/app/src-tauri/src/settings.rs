@@ -12,6 +12,9 @@ pub struct Settings {
     pub server_enabled: bool,
     pub unregister_on_quit: bool,
     pub launch_at_login: bool,
+    /// Daily update check against GitHub Releases (one unauthenticated GET;
+    /// no other network calls — see README's no-telemetry promise).
+    pub check_updates: bool,
 }
 
 impl Default for Settings {
@@ -21,6 +24,7 @@ impl Default for Settings {
             server_enabled: true,
             unregister_on_quit: false,
             launch_at_login: false,
+            check_updates: true,
         }
     }
 }
@@ -67,6 +71,7 @@ mod tests {
             server_enabled: false,
             unregister_on_quit: true,
             launch_at_login: true,
+            check_updates: false,
         };
         settings.save(&path).unwrap();
         assert_eq!(Settings::load(&path), settings);

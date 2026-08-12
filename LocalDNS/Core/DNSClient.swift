@@ -200,3 +200,65 @@ private final class LookupSession: @unchecked Sendable {
         return true
     }
 }
+
+
+// MARK: - Update check (direct-download builds)
+
+/// Polls GitHub's releases/latest for a newer version — one unauthenticated
+/// GET, ETag-cached so repeats are free. Used only by the direct-download
+/// build; the App Store build compiles it out (APPSTORE flag) because MAS
+/// apps must not self-update or advertise updates outside the store.
+public final class UpdateChecker: @unchecked Sendable {
+    public static let releasesPage = URL(string: "https://github.com/sibidharan/localdns/releases/latest")!
+    private static let api = URL(string: "https://api.github.com/repos/sibidharan/localdns/releases/latest")!
+    private var etag: String?
+
+    public init() {}
+
+    /// Calls back with the newer version string ("0.2.2"), or nil when
+    /// current, unreachable, or unchanged since the last check (ETag 304).
+    public func check(currentVersion: String, completion: @escaping @Sendable (String?) -> Void) {
+        var request = URLRequest(url: Self.api)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200, let data else {
+                completion(nil)
+                return
+            }
+            self?.etag = http.value(forHTTPHeaderField: "ETag")
+            guard let tag = Self.tagName(in: data),
+                  Self.isNewer(tag, than: currentVersion) else {
+                completion(nil)
+                return
+            }
+            completion(Self.normalized(tag))
+        }.resume()
+    }
+
+    /// "v0.2.2" → "0.2.2".
+    public static func normalized(_ tag: String) -> String {
+        tag.hasPrefix("v") || tag.hasPrefix("V") ? String(tag.dropFirst()) : tag
+    }
+
+    public static func tagName(in json: Data) -> String? {
+        struct Release: Decodable { let tag_name: String }
+        return (try? JSONDecoder().decode(Release.self, from: json))?.tag_name
+    }
+
+    /// Numeric per-component compare — "0.10.0" beats "0.9.9"; missing
+    /// components count as zero ("1.0" == "1.0.0").
+    public static func isNewer(_ tag: String, than current: String) -> Bool {
+        func parts(_ s: String) -> [Int] {
+            normalized(s).split(separator: ".").compactMap { Int($0) }
+        }
+        let a = parts(tag)
+        let b = parts(current)
+        for i in 0 ..< max(a.count, b.count) {
+            let x = i < a.count ? a[i] : 0
+            let y = i < b.count ? b[i] : 0
+            if x != y { return x > y }
+        }
+        return false
+    }
+}

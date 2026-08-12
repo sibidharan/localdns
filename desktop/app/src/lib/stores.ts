@@ -1,4 +1,5 @@
 import { derived, writable } from "svelte/store";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import type {
@@ -12,6 +13,7 @@ import type {
 
 export const rules = writable<DnsRule[]>([]);
 export const settings = writable<Settings>({
+  checkUpdates: true,
   port: 15353,
   serverEnabled: true,
   unregisterOnQuit: false,
@@ -38,6 +40,46 @@ export const hostsScan = writable<HostsScan | null>(null);
 
 /// Titlebar action requests → views (macOS keeps these in AppState).
 export const newRuleRequest = writable(0);
+
+/// A newer release than the running version, when known.
+export interface UpdateInfo {
+  version: string;
+  /// "nsis" | "appimage" install in place; "package" links to the release.
+  channel: string;
+}
+export const updateAvailable = writable<UpdateInfo | null>(null);
+
+const RELEASES_URL = "https://github.com/sibidharan/localdns/releases/latest";
+
+/// One unauthenticated check against the release feed. "dev" installs skip;
+/// "package" installs only learn the version (never self-install).
+export async function checkForUpdates(): Promise<void> {
+  try {
+    const channel = await invoke<string>("update_channel");
+    if (channel === "dev") return;
+    const { check } = await import("@tauri-apps/plugin-updater");
+    const update = await check();
+    if (update) {
+      updateAvailable.set({ version: update.version, channel });
+    }
+  } catch {
+    // Offline or feed unreachable — stay quiet, try again next cycle.
+  }
+}
+
+export async function installUpdate(): Promise<void> {
+  const { check } = await import("@tauri-apps/plugin-updater");
+  const update = await check();
+  if (!update) return;
+  await update.downloadAndInstall();
+  const { relaunch } = await import("@tauri-apps/plugin-process");
+  await relaunch();
+}
+
+export async function openReleasePage(): Promise<void> {
+  const { openUrl } = await import("@tauri-apps/plugin-opener");
+  await openUrl(RELEASES_URL);
+}
 
 /// Orb/status derivation, mirroring ActionBar.swift's AppState extension:
 /// teal = serving & settled · amber = running but work pending · gray = stopped.
@@ -114,6 +156,15 @@ export async function initStores() {
     void refreshOverview();
   });
   void refreshOverview();
+
+  // Update check: on launch and every 24 h, only while enabled in Settings.
+  const maybeCheck = () => {
+    let enabled = true;
+    settings.subscribe((s) => (enabled = s.checkUpdates))();
+    if (enabled) void checkForUpdates();
+  };
+  setTimeout(maybeCheck, 5000);
+  setInterval(maybeCheck, 24 * 60 * 60 * 1000);
 
   // Coming back from the tray: the debounced publisher skipped us while
   // hidden, so refresh the log when the window regains focus.

@@ -24,6 +24,7 @@ const settings: Settings = {
   serverEnabled: true,
   unregisterOnQuit: false,
   launchAtLogin: false,
+  checkUpdates: true,
 };
 
 it("maps every call onto its command name and payload", async () => {

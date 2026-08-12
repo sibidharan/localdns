@@ -15,6 +15,7 @@ export interface Settings {
   serverEnabled: boolean;
   unregisterOnQuit: boolean;
   launchAtLogin: boolean;
+  checkUpdates: boolean;
 }
 
 export interface ServerStatus {

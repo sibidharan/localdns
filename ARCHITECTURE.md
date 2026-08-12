@@ -125,6 +125,22 @@ rules on a 2 s mtime watch, and re-registers zones through the same backend —
 so `localdns add` from any shell is live within seconds. Ships in the
 deb/rpm with a systemd user unit.
 
+## Updates
+
+Direct-download builds check GitHub Releases once a day (one unauthenticated
+GET; a Settings toggle disables it — there is no other telemetry). What
+happens next depends on the install:
+
+- **Windows NSIS / Linux AppImage** — full in-app auto-update via Tauri's
+  updater: releases ship minisign-signed artifacts plus a `latest.json`
+  feed; the app verifies the signature, installs, and relaunches.
+- **Linux deb/rpm** — notification only; packages belong to the package
+  manager (repositories are on the roadmap).
+- **macOS direct build** — notification linking to the release (unsigned
+  builds can't self-install safely). The Mac App Store build compiles the
+  whole checker out (`APPSTORE` flag): MAS handles its own updates and
+  forbids in-app update flows.
+
 ## Data formats
 
 `rules.json` is byte-schema-identical across all three apps (alphabetically

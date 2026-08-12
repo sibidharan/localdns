@@ -12,8 +12,9 @@ items are concrete and scoped; later items are direction, not commitment.
   `winget install localdns`.
 - Linux: apt/dnf repositories (or at least a stable download URL per distro),
   AUR package, Fedora COPR.
-- Auto-update: Tauri updater for the NSIS build and AppImage; deb/rpm update
-  through their repos; App Store handles macOS.
+- ~~Auto-update~~ **done (v0.2.2)**: Tauri updater auto-updates NSIS +
+  AppImage; deb/rpm and the macOS direct build get in-app notifications;
+  App Store will handle macOS itself (checker compiled out there).
 
 **Rules that travel**:
 - Import/export from the UI (`rules.json` is already portable across all

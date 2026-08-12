@@ -3,6 +3,9 @@
   import {
     hostsScan,
     initStores,
+    installUpdate,
+    openReleasePage,
+    updateAvailable,
     newRuleRequest,
     orbState,
     queryLog,
@@ -222,6 +225,25 @@
         </div>
       </header>
 
+      {#if $updateAvailable}
+        <div class="update-banner">
+          <span>
+            LocalDNS {$updateAvailable.version} is available.
+          </span>
+          {#if $updateAvailable.channel === "package"}
+            <button class="update-action" on:click={() => openReleasePage()}>
+              View release
+            </button>
+          {:else}
+            <button class="update-action" on:click={() => installUpdate()}>
+              Install &amp; relaunch
+            </button>
+          {/if}
+          <button class="update-dismiss" on:click={() => updateAvailable.set(null)}>
+            Later
+          </button>
+        </div>
+      {/if}
       <main class="content">
         {#if tab === "rules"}
           <RulesView />
@@ -322,6 +344,26 @@
     flex-direction: column;
     min-width: 0;
   }
+  .update-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 10px 10px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent, #3478f6) 18%, transparent);
+    font-size: 13px;
+  }
+  .update-banner span {
+    flex: 1;
+  }
+  .update-action {
+    font-weight: 600;
+  }
+  .update-dismiss {
+    opacity: 0.7;
+  }
+
   .topbar {
     display: flex;
     align-items: center;

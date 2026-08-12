@@ -363,6 +363,17 @@ private struct MenuBarContentView: View {
                 }
             }
 
+            if let newer = appState.availableUpdate {
+                Divider()
+                Button {
+                    NSWorkspace.shared.open(UpdateChecker.releasesPage)
+                } label: {
+                    Label("Update to LocalDNS \(newer)", systemImage: "arrow.down.circle")
+                        .font(.callout)
+                }
+                .buttonStyle(.plain)
+            }
+
             Divider()
 
             HStack {

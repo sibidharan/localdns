@@ -454,6 +454,28 @@ pub async fn resolver_unregister_all<R: tauri::Runtime>(app: AppHandle<R>) -> Sy
     outcome
 }
 
+// MARK: Updates
+
+/// How this install can be updated. "nsis"/"appimage" support in-place
+/// auto-update through the updater plugin; "package" (deb/rpm) only gets a
+/// notification pointing at the release page; "dev" disables checks.
+#[tauri::command]
+pub fn update_channel() -> &'static str {
+    if cfg!(windows) {
+        return "nsis";
+    }
+    if cfg!(target_os = "linux") {
+        if std::env::var_os("APPIMAGE").is_some() {
+            return "appimage";
+        }
+        let from_usr = std::env::current_exe()
+            .map(|p| p.starts_with("/usr"))
+            .unwrap_or(false);
+        return if from_usr { "package" } else { "dev" };
+    }
+    "dev"
+}
+
 // MARK: Window / lifecycle
 
 #[tauri::command]

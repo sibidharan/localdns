@@ -10,6 +10,13 @@ const listeners = new Map<string, (event: { payload: unknown }) => void>();
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }));
+vi.mock("@tauri-apps/plugin-updater", () => ({
+  check: () =>
+    Promise.resolve({ version: "9.9.9", downloadAndInstall: vi.fn() }),
+}));
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
+vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
+
 vi.mock("@tauri-apps/api/event", () => ({
   listen: (name: string, handler: (event: { payload: unknown }) => void) => {
     listeners.set(name, handler);
@@ -159,6 +166,7 @@ describe("initStores wiring", () => {
               serverEnabled: true,
               unregisterOnQuit: false,
               launchAtLogin: false,
+              checkUpdates: false,
             },
             status: serverStatus(),
             queryLog: [],
@@ -214,5 +222,21 @@ describe("toasts", () => {
     expect(get(toasts)).toHaveLength(1);
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(get(toasts)).toHaveLength(0);
+  });
+});
+
+describe("update check", () => {
+  it("stores the update for updatable channels and skips dev", async () => {
+    const { checkForUpdates, updateAvailable } = await import("./stores");
+    invokeMock.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === "update_channel" ? "nsis" : null),
+    );
+    await checkForUpdates();
+    expect(get(updateAvailable)).toEqual({ version: "9.9.9", channel: "nsis" });
+
+    updateAvailable.set(null);
+    invokeMock.mockImplementation(() => Promise.resolve("dev"));
+    await checkForUpdates();
+    expect(get(updateAvailable)).toBeNull();
   });
 });
