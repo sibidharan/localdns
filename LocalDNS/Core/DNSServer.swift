@@ -352,7 +352,7 @@ public final class DNSServer: ObservableObject, @unchecked Sendable {
     private static func probeOnce(port: UInt16) -> Bool {
         guard let query = DNSClient.encodeQuery(
             id: UInt16.random(in: 1 ... .max),
-            name: "probe.localdns.invalid",
+            name: QueryLog.watchdogProbeName,
             qtype: DNSMessage.typeA
         ) else { return false }
         let fd = socket(AF_INET, SOCK_DGRAM, 0)

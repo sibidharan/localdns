@@ -10,6 +10,14 @@ use uuid::Uuid;
 use crate::message::{DnsAnswer, DnsQuery, TYPE_A, TYPE_AAAA};
 use crate::rules::DnsResolution;
 
+/// The name the server's liveness watchdog queries itself with (see
+/// localdns-server's endpoint supervisor). A heartbeat, not user traffic:
+/// `append` drops it, because a red NXDOMAIN row every minute reads as
+/// failure and flushes real queries out of the ring. Watchdog *failures* are
+/// loud elsewhere (stderr, the status orb); its successes stay out of the
+/// log. Mirrors `QueryLog.watchdogProbeName` in QueryLog.swift.
+pub const WATCHDOG_PROBE_NAME: &str = "probe.localdns.invalid";
+
 /// How the server answered.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", content = "value", rename_all = "camelCase")]
@@ -123,6 +131,9 @@ impl QueryLog {
     }
 
     pub fn append(&self, entry: QueryLogEntry) {
+        if entry.name == WATCHDOG_PROBE_NAME {
+            return;
+        }
         let mut storage = self.storage.lock().unwrap();
         storage.insert(0, entry);
         let capacity = self.capacity;
@@ -184,6 +195,16 @@ mod tests {
                 "host3.test"
             ]
         );
+    }
+
+    #[test]
+    fn watchdog_probe_entries_are_not_recorded() {
+        let log = QueryLog::new(5);
+        log.append(QueryLogEntry::new(WATCHDOG_PROBE_NAME, "A", Outcome::Nxdomain));
+        assert_eq!(log.count(), 0);
+        log.append(entry(1));
+        let names: Vec<String> = log.entries().into_iter().map(|e| e.name).collect();
+        assert_eq!(names, vec!["host1.test"]);
     }
 
     #[test]

@@ -187,7 +187,7 @@ async fn endpoint_supervisor(
 /// One real query; any parsed reply proves the endpoint is alive.
 async fn probe_alive(addr: SocketAddr) -> bool {
     crate::client::lookup(
-        "probe.localdns.invalid",
+        localdns_core::WATCHDOG_PROBE_NAME,
         localdns_core::message::TYPE_A,
         addr,
         Duration::from_secs(2),

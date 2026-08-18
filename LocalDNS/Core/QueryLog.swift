@@ -69,6 +69,13 @@ public struct QueryLogEntry: Codable, Equatable, Identifiable, Sendable {
 /// Plain class with no Combine/SwiftUI so Core stays UI-framework-free;
 /// AppState will publish snapshots for the UI.
 public final class QueryLog: @unchecked Sendable {
+    /// The name the server's liveness watchdog queries itself with (see
+    /// DNSServer). A heartbeat, not user traffic: append drops it, because a
+    /// red NXDOMAIN row every minute reads as failure and flushes real
+    /// queries out of the ring. Watchdog *failures* are loud elsewhere
+    /// (os_log, the status orb); its successes stay out of the log.
+    public static let watchdogProbeName = "probe.localdns.invalid"
+
     public let capacity: Int
     private var storage: [QueryLogEntry] = [] // newest first
     private let lock = NSLock()
@@ -91,6 +98,7 @@ public final class QueryLog: @unchecked Sendable {
     }
 
     public func append(_ entry: QueryLogEntry) {
+        if entry.name == Self.watchdogProbeName { return }
         lock.lock()
         storage.insert(entry, at: 0)
         if storage.count > capacity {

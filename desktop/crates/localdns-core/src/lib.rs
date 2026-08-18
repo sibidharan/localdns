@@ -15,5 +15,5 @@ pub mod validation;
 pub mod zones;
 
 pub use message::{DnsAnswer, DnsParseError, DnsQuery};
-pub use query_log::{Outcome, QueryLog, QueryLogEntry};
+pub use query_log::{Outcome, QueryLog, QueryLogEntry, WATCHDOG_PROBE_NAME};
 pub use rules::{best_match, normalize, resolve, response_data, DnsResolution, DnsRule, RuleStore};

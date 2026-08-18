@@ -23,6 +23,14 @@ final class QueryLogTests: XCTestCase {
                        ["host7.test", "host6.test", "host5.test", "host4.test", "host3.test"])
     }
 
+    func testWatchdogProbeEntriesAreNotRecorded() {
+        let log = QueryLog(capacity: 5)
+        log.append(QueryLogEntry(name: QueryLog.watchdogProbeName, qtype: "A", outcome: .nxdomain))
+        XCTAssertEqual(log.count, 0)
+        log.append(entry(1))
+        XCTAssertEqual(log.entries.map(\.name), ["host1.test"])
+    }
+
     func testClear() {
         let log = QueryLog(capacity: 3)
         log.append(entry(1))

@@ -2326,7 +2326,7 @@ checksum = "92daf443525c4cce67b150400bc2316076100ce0b3686209eb8cf3c31612e6f0"
 
 [[package]]
 name = "localdns-agentd"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "futures-util",
  "localdns-core",
@@ -2338,7 +2338,7 @@ dependencies = [
 
 [[package]]
 name = "localdns-app"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "arc-swap",
  "dirs 6.0.0",
@@ -2362,7 +2362,7 @@ dependencies = [
 
 [[package]]
 name = "localdns-cli"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "arc-swap",
  "clap",
@@ -2376,7 +2376,7 @@ dependencies = [
 
 [[package]]
 name = "localdns-core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "dirs 6.0.0",
  "serde",
@@ -2387,7 +2387,7 @@ dependencies = [
 
 [[package]]
 name = "localdns-helper"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "localdns-core",
  "localdns-platform",
@@ -2400,7 +2400,7 @@ dependencies = [
 
 [[package]]
 name = "localdns-platform"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "localdns-core",
  "serde",
@@ -2411,7 +2411,7 @@ dependencies = [
 
 [[package]]
 name = "localdns-server"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "localdns-core",
  "tokio",
