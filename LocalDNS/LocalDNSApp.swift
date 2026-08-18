@@ -18,7 +18,36 @@ final class LocalDNSAppDelegate: NSObject, NSApplicationDelegate {
     /// the surviving primary brings its window forward.
     static let showWindowNote = Notification.Name("com.localdns.app.show-main-window")
 
+    /// True when loginwindow auto-launched this process as a login item. The
+    /// launch open-event carries the flag and is "current" only while
+    /// applicationDidFinishLaunching runs — it cannot be read later.
+    /// nonisolated(unsafe): written once in applicationDidFinishLaunching and
+    /// read from the main thread only (onAppear), both on the main actor.
+    nonisolated(unsafe) private(set) static var launchedAsLoginItem = false
+
+    /// A tray-resident app auto-launched at login must not open its main
+    /// window: it lands in the user's face mid-login and invites the
+    /// reflexive Cmd+Q that takes the DNS server down with it. Close, not
+    /// prevent: the NSWindow survives close (ordered out), so every existing
+    /// reopen path — popover "Open LocalDNS", Dock reopen, duplicate-instance
+    /// notification — keeps working.
+    static func closeMainWindowIfPresent() {
+        NSApp.windows.first(where: {
+            $0.identifier?.rawValue.contains("main") == true || $0.title == "LocalDNS"
+        })?.close()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        Self.launchedAsLoginItem = event?.eventID == AEEventID(kAEOpenApplication)
+            && event?.paramDescriptor(forKeyword: AEKeyword(keyAEPropData))?
+                .enumCodeValue == OSType(keyAELaunchedAsLogInItem)
+        if Self.launchedAsLoginItem {
+            // The SwiftUI scene may not have presented yet; ContentView's
+            // onAppear (below, in LocalDNSApp) closes the late-created one.
+            Self.closeMainWindowIfPresent()
+        }
+
         DistributedNotificationCenter.default().addObserver(
             forName: Self.showWindowNote, object: nil, queue: .main
         ) { _ in
@@ -108,11 +137,23 @@ struct LocalDNSApp: App {
         }
     }
 
+    /// One-shot: the login-launch window suppression must not re-close the
+    /// window when the user later reopens it themselves.
+    private static var loginWindowSuppressed = false
+
     var body: some Scene {
         Window("LocalDNS", id: "main") {
             ContentView()
                 .environmentObject(appState)
                 .frame(minWidth: 840, minHeight: 560)
+                .onAppear {
+                    // SwiftUI presents this scene after the delegate has read
+                    // the launch event; at login the window must not stay up.
+                    if LocalDNSAppDelegate.launchedAsLoginItem, !Self.loginWindowSuppressed {
+                        Self.loginWindowSuppressed = true
+                        LocalDNSAppDelegate.closeMainWindowIfPresent()
+                    }
+                }
         }
         .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)

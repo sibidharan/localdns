@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 /// Settings: standard grouped form. No custom surfaces.
@@ -40,6 +41,10 @@ struct SettingsView: View {
                         Text(error)
                             .font(.caption)
                             .foregroundStyle(.red)
+                        Button("Open Login Items Settings…") {
+                            SMAppService.openSystemSettingsLoginItems()
+                        }
+                        .font(.caption)
                     }
                     Toggle("Show LocalDNS in the menu bar", isOn: $showMenuBarIcon)
                     if !showMenuBarIcon {

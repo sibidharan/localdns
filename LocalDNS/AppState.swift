@@ -171,6 +171,7 @@ final class AppState: ObservableObject {
         if serverEnabled {
             startServer()
         }
+        reconcileLaunchAtLogin()
         handleLaunchArguments()
     }
 
@@ -476,16 +477,45 @@ final class AppState: ObservableObject {
 
     // MARK: Launch at login
 
+    private static let approvalPendingMessage =
+        "Waiting for approval — enable LocalDNS under System Settings → General → Login Items & Extensions."
+
     private func applyLaunchAtLoginChange() {
         do {
             if launchAtLogin {
                 try SMAppService.mainApp.register()
+                launchAtLoginError = SMAppService.mainApp.status == .requiresApproval
+                    ? Self.approvalPendingMessage : nil
             } else {
                 try SMAppService.mainApp.unregister()
+                launchAtLoginError = nil
             }
-            launchAtLoginError = nil
         } catch {
             launchAtLoginError = error.localizedDescription
+        }
+    }
+
+    /// The registration rots while the app isn't looking: the bundle moves or
+    /// is rebuilt (a DerivedData clean deletes it outright), or the user flips
+    /// the item off in System Settings. The toggle's didSet only fires on
+    /// changes, so reconcile stored intent with SMAppService's actual status
+    /// once per launch — re-registering also re-points the login item at THIS
+    /// bundle, healing a record left aimed at a moved or deleted copy.
+    private func reconcileLaunchAtLogin() {
+        guard launchAtLogin else { return }
+        switch SMAppService.mainApp.status {
+        case .enabled:
+            launchAtLoginError = nil
+        case .requiresApproval:
+            launchAtLoginError = Self.approvalPendingMessage
+        default:
+            do {
+                try SMAppService.mainApp.register()
+                launchAtLoginError = SMAppService.mainApp.status == .requiresApproval
+                    ? Self.approvalPendingMessage : nil
+            } catch {
+                launchAtLoginError = error.localizedDescription
+            }
         }
     }
 
